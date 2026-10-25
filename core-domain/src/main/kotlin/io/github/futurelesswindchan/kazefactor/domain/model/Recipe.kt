@@ -22,45 +22,18 @@ import kotlinx.serialization.Serializable
 data class Recipe(
     val id: String,
     val name: String,
-    val wantedFactorIds: List<Int>,
-    val unwantedFactorIds: List<Int> = emptyList(),
-    val optionalFactorIds: List<Int> = emptyList(),
+    val wantedFactorIds: Set<Int>,
+    val unwantedFactorIds: Set<Int> = emptySet(),
+    val optionalFactorIds: Set<Int> = emptySet(),
     val minOptional: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 ) {
+    // 注意：这里只拦截"结构性"错误（负数）。
+    // 超过4个、想要/不想要重叠、冲突等"业务规则"允许存在于草稿中，
+    // 由 RuleEngine.validate() 检测并给出自动纠正建议，否则 UI 无法展示这些提示。
     init {
-        require(wantedFactorIds.size <= 4) { 
-            "想要的因子数量不能超过4个" 
-        }
-        require(wantedFactorIds.toSet().size == wantedFactorIds.size) {
-            "想要的因子列表不能有重复"
-        }
-        require(unwantedFactorIds.toSet().size == unwantedFactorIds.size) {
-            "不想要的因子列表不能有重复"
-        }
-        require(optionalFactorIds.toSet().size == optionalFactorIds.size) {
-            "可选因子列表不能有重复"
-        }
         require(minOptional >= 0) {
             "可选因子的最小数量不能为负数"
-        }
-        require(minOptional <= optionalFactorIds.size) {
-            "可选因子的最小数量不能超过可选因子总数"
-        }
-        
-        // wanted、unwanted、optional 三个集合不能有交集
-        val wanted = wantedFactorIds.toSet()
-        val unwanted = unwantedFactorIds.toSet()
-        val optional = optionalFactorIds.toSet()
-        
-        require((wanted intersect unwanted).isEmpty()) {
-            "想要和不想要的因子不能有重叠"
-        }
-        require((wanted intersect optional).isEmpty()) {
-            "想要和可选的因子不能有重叠"
-        }
-        require((unwanted intersect optional).isEmpty()) {
-            "不想要和可选的因子不能有重叠"
         }
     }
     
@@ -68,7 +41,7 @@ data class Recipe(
      * 获取该配方涉及的所有因子ID（去重）
      */
     fun getAllFactorIds(): Set<Int> {
-        return wantedFactorIds.toSet() + unwantedFactorIds.toSet() + optionalFactorIds.toSet()
+        return wantedFactorIds + unwantedFactorIds + optionalFactorIds
     }
     
     /**

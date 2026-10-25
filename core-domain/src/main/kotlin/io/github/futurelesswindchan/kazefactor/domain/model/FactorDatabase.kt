@@ -50,6 +50,13 @@ data class FactorDatabase(
     }
     
     /**
+     * 获取所有因子的 ID 集合
+     */
+    fun getAllFactorIds(): Set<Int> {
+        return factors.map { it.id }.toSet()
+    }
+    
+    /**
      * 获取指定类别的所有因子
      */
     fun getFactorsByCategory(category: FactorCategory): List<Factor> {

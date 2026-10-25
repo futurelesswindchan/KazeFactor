@@ -153,6 +153,13 @@ enum class SlotConstraint(
         FactorCategory.MINOR_GOOD
     );
     
+    /**
+     * 将槽位组合转换为类别列表（用于遍历）
+     */
+    fun toCategories(): List<FactorCategory> {
+        return listOf(slot1, slot2, slot3, slot4)
+    }
+    
     companion object {
         /**
          * 判断给定的4个因子类别组合是否合法
