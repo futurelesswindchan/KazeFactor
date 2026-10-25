@@ -1,0 +1,433 @@
+{
+  "dataVersion": 1,
+  "gameVersion": "未知",
+  "factors": [
+    {
+      "id": 1,
+      "key": "double_hp",
+      "name": "双倍快乐",
+      "description": "敌人拥有双倍血量",
+      "category": "MAJOR_BAD"
+    },
+    {
+      "id": 2,
+      "key": "elemental_chaos",
+      "name": "元素异常",
+      "description": "角色受到攻击时会被附加随机异常状态，冷却时间5秒",
+      "category": "MAJOR_BAD"
+    },
+    {
+      "id": 3,
+      "key": "fragile",
+      "name": "脆皮",
+      "description": "生命上限固定为1点",
+      "category": "MAJOR_BAD"
+    },
+    {
+      "id": 4,
+      "key": "horde",
+      "name": "人海战术",
+      "description": "敌人更加密集",
+      "category": "MAJOR_BAD"
+    },
+    {
+      "id": 5,
+      "key": "dual_boss",
+      "name": "双领主",
+      "description": "你将同时面对两个领主，但领主会变得更弱一些",
+      "category": "MAJOR_BAD"
+    },
+    {
+      "id": 6,
+      "key": "cell_split",
+      "name": "细胞分裂",
+      "description": "怪物血量少于一半时自动分裂",
+      "category": "MAJOR_BAD"
+    },
+    {
+      "id": 7,
+      "key": "weapon_overheat",
+      "name": "武器过热",
+      "description": "发射类型的武器持续攻击会使得攻击速度变慢",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 8,
+      "key": "weak_potion",
+      "name": "劣质药剂",
+      "description": "从所有类型的恢复中获取的治疗数值都会减半",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 9,
+      "key": "blinking_enemy",
+      "name": "闪现的敌人",
+      "description": "敌人受到伤害瞬移",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 10,
+      "key": "armored_enemy",
+      "name": "坚强的敌人",
+      "description": "敌人防御+1",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 11,
+      "key": "fast_bullet",
+      "name": "亢奋的敌人",
+      "description": "敌人子弹速度增加",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 12,
+      "key": "aggressive_enemy",
+      "name": "狂野的敌人",
+      "description": "敌人更具有攻击性",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 13,
+      "key": "myopia",
+      "name": "近视眼",
+      "description": "可视范围受限",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 14,
+      "key": "no_ui",
+      "name": "无知觉",
+      "description": "功能性界面失去作用",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 15,
+      "key": "shuffle_floor",
+      "name": "梦游",
+      "description": "地牢顺序被打乱",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 16,
+      "key": "more_rooms",
+      "name": "地牢扩建",
+      "description": "增加地牢中房间的数量",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 17,
+      "key": "elite_more",
+      "name": "全面戒备",
+      "description": "精英怪出现概率增加",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 18,
+      "key": "tracking_laser",
+      "name": "跟踪激光",
+      "description": "定期出现的激光将会跟踪角色，对角色和敌人都会造成伤害",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 19,
+      "key": "mutant_chest",
+      "name": "箱子突变",
+      "description": "关卡内部分箱子将突变为特殊箱子",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 20,
+      "key": "miasma",
+      "name": "瘴气弥漫",
+      "description": "关卡内随机出现瘴气区域，角色在瘴气区域内能够隐身，同时不断叠加瘴气减益效果。瘴气减益效果叠满后会损伤生命值，离开瘴气区域后，瘴气减益效果将自动流失",
+      "category": "MODERATE_BAD"
+    },
+    {
+      "id": 21,
+      "key": "resistant_enemy",
+      "name": "精神的敌人",
+      "description": "敌人所受负面效果时间减半",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 22,
+      "key": "bad_luck",
+      "name": "坏运气",
+      "description": "坏运气",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 23,
+      "key": "energy_weak",
+      "name": "能量衰弱",
+      "description": "最大能量衰弱",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 24,
+      "key": "cooldown_double",
+      "name": "冷却翻倍",
+      "description": "技能冷却时间增加100%",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 25,
+      "key": "price_up",
+      "name": "加价",
+      "description": "地牢商品价格加倍",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 26,
+      "key": "bomb_chest",
+      "name": "炸弹宝箱",
+      "description": "普通怪物房间奖励宝箱（白箱子）只会出现金币或炸弹",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 27,
+      "key": "single_weapon",
+      "name": "单武器",
+      "description": "默认只能携带一把武器",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 28,
+      "key": "no_pet",
+      "name": "孤勇者",
+      "description": "不能携带宠物及佣兵",
+      "category": "MINOR_BAD"
+    },
+    {
+      "id": 29,
+      "key": "dizzy_enemy",
+      "name": "跑起来的敌人",
+      "description": "敌人变快，但是偶尔会眩晕",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 30,
+      "key": "talent_choice_plus",
+      "name": "天赋选择+1",
+      "description": "减少一个天赋位置，选择天赋时增加1个选项",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 31,
+      "key": "talent_slot_plus",
+      "name": "天赋位置+1",
+      "description": "增加一个天赋位置，选择天赋时减少1个选项",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 32,
+      "key": "hard_shell",
+      "name": "硬壳守护",
+      "description": "战斗中护甲不会恢复，但拥有更强的防御力",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 33,
+      "key": "deja_vu",
+      "name": "既视感",
+      "description": "可能会遇到完全一样的关卡",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 34,
+      "key": "time_flux",
+      "name": "时间流速不稳定",
+      "description": "你的行动变得时快时慢",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 35,
+      "key": "single_enemy_type",
+      "name": "配置错误",
+      "description": "每个房间只会出现一种敌人",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 36,
+      "key": "melee_only",
+      "name": "近战限定",
+      "description": "只能使用近战武器",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 37,
+      "key": "random_hero",
+      "name": "多重人格",
+      "description": "进入下一层时随机更换所选角色",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 38,
+      "key": "weapon_reforge",
+      "name": "武器重铸",
+      "description": "每关开始时会重铸手上的武器",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 39,
+      "key": "crit_buff",
+      "name": "精准强化术",
+      "description": "武器的暴击率加倍，暴击伤害减半",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 40,
+      "key": "giant",
+      "name": "巨大化",
+      "description": "角色体型变大，提升生命和护甲，减少移动速度",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 41,
+      "key": "shrink",
+      "name": "缩小隧道",
+      "description": "角色体型变小，降低生命和护甲，增加移动速度",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 42,
+      "key": "power_buff",
+      "name": "肌肉强化术",
+      "description": "武器的攻击力加倍，但攻击速度减半",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 43,
+      "key": "speed_buff",
+      "name": "攻速强化术",
+      "description": "武器攻击速度加倍，但伤害减半",
+      "category": "NEUTRAL"
+    },
+    {
+      "id": 44,
+      "key": "weapon_gift",
+      "name": "天降神兵",
+      "description": "每进入一个新场景可以获得一把武器",
+      "category": "MINOR_GOOD"
+    },
+    {
+      "id": 45,
+      "key": "mount_gift",
+      "name": "驯兽师",
+      "description": "每进入一个新场景可以获得一个坐骑",
+      "category": "MINOR_GOOD"
+    },
+    {
+      "id": 46,
+      "key": "revival",
+      "name": "复活苏生",
+      "description": "增加复活次数",
+      "category": "MINOR_GOOD"
+    },
+    {
+      "id": 47,
+      "key": "special_room",
+      "name": "神灯",
+      "description": "每关都能额外遇到一个特殊房间",
+      "category": "MINOR_GOOD"
+    },
+    {
+      "id": 48,
+      "key": "talent_buffet",
+      "name": "天赋自助餐",
+      "description": "选择天赋时增加2个选项",
+      "category": "MINOR_GOOD"
+    },
+    {
+      "id": 49,
+      "key": "good_luck",
+      "name": "好运气",
+      "description": "好运气",
+      "category": "MINOR_GOOD"
+    },
+    {
+      "id": 50,
+      "key": "multi_statue",
+      "name": "多重雕像",
+      "description": "可以同时拥有多个雕像效果",
+      "category": "MINOR_GOOD"
+    },
+    {
+      "id": 51,
+      "key": "infinite_energy",
+      "name": "无限能量",
+      "description": "拥有无限能量",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 52,
+      "key": "sale",
+      "name": "特卖日",
+      "description": "神秘商人的特卖活动已开启",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 53,
+      "key": "combo_buff",
+      "name": "越战越勇",
+      "description": "连续击杀怪物会让角色变得更强",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 54,
+      "key": "attachment_master",
+      "name": "配件大师",
+      "description": "所有武器自带一个配件",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 55,
+      "key": "life_regen",
+      "name": "生命恢复术",
+      "description": "生命低于50%时自动回复",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 56,
+      "key": "talent_gift",
+      "name": "天赋异禀",
+      "description": "额外获得3个天赋位置",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 57,
+      "key": "crit_damage",
+      "name": "疯狂匕首",
+      "description": "暴击伤害增加",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 58,
+      "key": "giant_pet",
+      "name": "宠物巨大化",
+      "description": "宠物巨大化，拥有更高的攻击力和攻击性",
+      "category": "MAJOR_GOOD"
+    },
+    {
+      "id": 59,
+      "key": "cooldown_half",
+      "name": "冷却减半",
+      "description": "技能冷却时间减少50%",
+      "category": "MAJOR_GOOD"
+    }
+  ],
+  "conflicts": [
+    [40, 41],
+    [42, 43],
+    [28, 58],
+    [24, 59],
+    [22, 49],
+    [30, 31],
+    [3, 55],
+    [44, 45],
+    [3, 37],
+    [32, 37],
+    [23, 51]
+  ],
+  "exclusiveGroups": []
+}
