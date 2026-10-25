@@ -114,8 +114,8 @@ class FactorDatabaseTest {
         assertEquals("无限能量", factor1.name)
         
         // 测试按key查找
-        val factor2 = db.getFactorByKey("double_hp")
-        assertNotNull(factor2, "应该能找到key为double_hp的因子")
+        val factor2 = db.getFactorByKey("double_joy")
+        assertNotNull(factor2, "应该能找到key为double_joy的因子")
         assertEquals(1, factor2.id)
         assertEquals("双倍快乐", factor2.name)
     }

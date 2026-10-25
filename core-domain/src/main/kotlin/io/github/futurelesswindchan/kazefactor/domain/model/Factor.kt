@@ -33,9 +33,11 @@ enum class FactorCategory(val weight: Int) {
  * 挑战因子数据模型
  * 
  * @property id 因子唯一ID，用于配方存储和口令码编码，一旦发布永不改变
- * @property key 因子的英文短名（kebab-case），用于图标文件命名和日志输出
+ * @property key 因子的英文短名（snake_case），用于图标文件命名和日志输出
  * @property name 因子的中文名称，显示在界面上
- * @property description 因子效果描述，用于悬浮窗的详细信息展示
+ * @property nameEn 因子的英文名称（可选）
+ * @property description 因子效果描述（中文），用于悬浮窗的详细信息展示
+ * @property descriptionEn 因子效果描述（英文，可选）
  * @property category 因子类别，决定了它在槽位中的出现位置
  * @property iconFileName 图标文件名（可选，默认为 "${key}.png"）
  */
@@ -44,7 +46,9 @@ data class Factor(
     val id: Int,
     val key: String,
     val name: String,
+    val nameEn: String? = null,
     val description: String,
+    val descriptionEn: String? = null,
     val category: FactorCategory,
     val iconFileName: String? = null
 ) {

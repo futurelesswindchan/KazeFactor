@@ -4,416 +4,593 @@
   "factors": [
     {
       "id": 1,
-      "key": "double_hp",
+      "key": "double_joy",
       "name": "双倍快乐",
+      "nameEn": "Double Joy",
       "description": "敌人拥有双倍血量",
-      "category": "MAJOR_BAD"
+      "descriptionEn": "Enemy HP +100%",
+      "category": "MAJOR_BAD",
+      "iconFileName": "double_joy.png"
     },
     {
       "id": 2,
-      "key": "elemental_chaos",
+      "key": "elemental_anomaly",
       "name": "元素异常",
+      "nameEn": "Elemental Anomaly",
       "description": "角色受到攻击时会被附加随机异常状态，冷却时间5秒",
-      "category": "MAJOR_BAD"
+      "descriptionEn": "When you take a hit, a random debuff will be applied to you. The effect only triggers once every 5 seconds",
+      "category": "MAJOR_BAD",
+      "iconFileName": "elemental_anomaly.png"
     },
     {
       "id": 3,
-      "key": "fragile",
+      "key": "fragility",
       "name": "脆皮",
+      "nameEn": "Fragility",
       "description": "生命上限固定为1点",
-      "category": "MAJOR_BAD"
+      "descriptionEn": "Max HP =1",
+      "category": "MAJOR_BAD",
+      "iconFileName": "fragility.png"
     },
     {
       "id": 4,
-      "key": "horde",
+      "key": "strength_in_numbers",
       "name": "人海战术",
+      "nameEn": "Strength in Numbers",
       "description": "敌人更加密集",
-      "category": "MAJOR_BAD"
+      "descriptionEn": "More enemies in the dungeon",
+      "category": "MAJOR_BAD",
+      "iconFileName": "strength_in_numbers.png"
     },
     {
       "id": 5,
-      "key": "dual_boss",
+      "key": "boss_duo",
       "name": "双领主",
+      "nameEn": "Boss Duo",
       "description": "你将同时面对两个领主，但领主会变得更弱一些",
-      "category": "MAJOR_BAD"
+      "descriptionEn": "Fight with 2 slightly nerfed bosses in each Boss room",
+      "category": "MAJOR_BAD",
+      "iconFileName": "boss_duo.png"
     },
     {
       "id": 6,
-      "key": "cell_split",
+      "key": "cell_division",
       "name": "细胞分裂",
+      "nameEn": "Cell Division",
       "description": "怪物血量少于一半时自动分裂",
-      "category": "MAJOR_BAD"
+      "descriptionEn": "Monsters split into two when their HP is below 50%",
+      "category": "MAJOR_BAD",
+      "iconFileName": "cell_division.png"
     },
     {
       "id": 7,
-      "key": "weapon_overheat",
+      "key": "weapon_overheating",
       "name": "武器过热",
+      "nameEn": "Weapon Overheating",
       "description": "发射类型的武器持续攻击会使得攻击速度变慢",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "The fire rate of weapons that discharge projectiles reduce after consecutive attacks",
+      "category": "MODERATE_BAD",
+      "iconFileName": "weapon_overheating.png"
     },
     {
       "id": 8,
-      "key": "weak_potion",
+      "key": "inferior_medicament",
       "name": "劣质药剂",
+      "nameEn": "Inferior Medicament",
       "description": "从所有类型的恢复中获取的治疗数值都会减半",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "All recovery -50%",
+      "category": "MODERATE_BAD",
+      "iconFileName": "inferior_medicament.png"
     },
     {
       "id": 9,
-      "key": "blinking_enemy",
+      "key": "blinking_enemies",
       "name": "闪现的敌人",
+      "nameEn": "Blinking Enemies",
       "description": "敌人受到伤害瞬移",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Monsters shift to a different position the moment they get hit",
+      "category": "MODERATE_BAD",
+      "iconFileName": "blinking_enemies.png"
     },
     {
       "id": 10,
-      "key": "armored_enemy",
+      "key": "tough_enemies",
       "name": "坚强的敌人",
+      "nameEn": "Tough Enemies",
       "description": "敌人防御+1",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Enemy defense +1",
+      "category": "MODERATE_BAD",
+      "iconFileName": "tough_enemies.png"
     },
     {
       "id": 11,
-      "key": "fast_bullet",
+      "key": "wild_enemies",
       "name": "亢奋的敌人",
+      "nameEn": "Wild Enemies",
       "description": "敌人子弹速度增加",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Enemy fire rate up",
+      "category": "MODERATE_BAD",
+      "iconFileName": "wild_enemies.png"
     },
     {
       "id": 12,
-      "key": "aggressive_enemy",
+      "key": "feral_enemies",
       "name": "狂野的敌人",
+      "nameEn": "Feral Enemies",
       "description": "敌人更具有攻击性",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "More aggressive enemies",
+      "category": "MODERATE_BAD",
+      "iconFileName": "feral_enemies.png"
     },
     {
       "id": 13,
-      "key": "myopia",
+      "key": "nearsighted",
       "name": "近视眼",
+      "nameEn": "Nearsighted",
       "description": "可视范围受限",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Vision is limited",
+      "category": "MODERATE_BAD",
+      "iconFileName": "nearsighted.png"
     },
     {
       "id": 14,
-      "key": "no_ui",
+      "key": "imperception",
       "name": "无知觉",
+      "nameEn": "Imperception",
       "description": "功能性界面失去作用",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Functional UI is disabled",
+      "category": "MODERATE_BAD",
+      "iconFileName": "imperception.png"
     },
     {
       "id": 15,
-      "key": "shuffle_floor",
+      "key": "sleepwalk",
       "name": "梦游",
+      "nameEn": "Sleepwalk",
       "description": "地牢顺序被打乱",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Random levels",
+      "category": "MODERATE_BAD",
+      "iconFileName": "sleepwalk.png"
     },
     {
       "id": 16,
-      "key": "more_rooms",
+      "key": "dungeon_expansion",
       "name": "地牢扩建",
+      "nameEn": "Dungeon Expansion",
       "description": "增加地牢中房间的数量",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Each level may contain an extra battle room",
+      "category": "MODERATE_BAD",
+      "iconFileName": "dungeon_expansion.png"
     },
     {
       "id": 17,
-      "key": "elite_more",
+      "key": "full_alert",
       "name": "全面戒备",
+      "nameEn": "Full Alert",
       "description": "精英怪出现概率增加",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Elite enemies appear more often",
+      "category": "MODERATE_BAD",
+      "iconFileName": "full_alert.png"
     },
     {
       "id": 18,
-      "key": "tracking_laser",
+      "key": "homing_laser",
       "name": "跟踪激光",
+      "nameEn": "Homing Laser",
       "description": "定期出现的激光将会跟踪角色，对角色和敌人都会造成伤害",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "A beam of laser appear regularly, tracking you and dealing damage to both you and your enemies",
+      "category": "MODERATE_BAD",
+      "iconFileName": "homing_laser.png"
     },
     {
       "id": 19,
-      "key": "mutant_chest",
+      "key": "crate_mutation",
       "name": "箱子突变",
+      "nameEn": "Crate Mutation",
       "description": "关卡内部分箱子将突变为特殊箱子",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Some crates in levels will become special chests",
+      "category": "MODERATE_BAD",
+      "iconFileName": "crate_mutation.png"
     },
     {
       "id": 20,
       "key": "miasma",
       "name": "瘴气弥漫",
+      "nameEn": "Miasma",
       "description": "关卡内随机出现瘴气区域，角色在瘴气区域内能够隐身，同时不断叠加瘴气减益效果。瘴气减益效果叠满后会损伤生命值，离开瘴气区域后，瘴气减益效果将自动流失",
-      "category": "MODERATE_BAD"
+      "descriptionEn": "Miasma area randomly appear in the levels. Staying inside the miasma area grant you invisibility but also inflicts you with miasma stacks...",
+      "category": "MODERATE_BAD",
+      "iconFileName": "miasma.png"
     },
     {
       "id": 21,
-      "key": "resistant_enemy",
+      "key": "vigorous_enemies",
       "name": "精神的敌人",
+      "nameEn": "Vigorous Enemies",
       "description": "敌人所受负面效果时间减半",
-      "category": "MINOR_BAD"
+      "descriptionEn": "Enemy debuff time -50%",
+      "category": "MINOR_BAD",
+      "iconFileName": "vigorous_enemies.png"
     },
     {
       "id": 22,
       "key": "bad_luck",
       "name": "坏运气",
+      "nameEn": "Bad Luck",
       "description": "坏运气",
-      "category": "MINOR_BAD"
+      "descriptionEn": "You are jinxed",
+      "category": "MINOR_BAD",
+      "iconFileName": "bad_luck.png"
     },
     {
       "id": 23,
-      "key": "energy_weak",
+      "key": "energy_decay",
       "name": "能量衰弱",
+      "nameEn": "Energy Decay",
       "description": "最大能量衰弱",
-      "category": "MINOR_BAD"
+      "descriptionEn": "Max energy -50%",
+      "category": "MINOR_BAD",
+      "iconFileName": "energy_decay.png"
     },
     {
       "id": 24,
-      "key": "cooldown_double",
+      "key": "double_cooldown",
       "name": "冷却翻倍",
+      "nameEn": "Double Cooldown",
       "description": "技能冷却时间增加100%",
-      "category": "MINOR_BAD"
+      "descriptionEn": "Skill cooldown +100%",
+      "category": "MINOR_BAD",
+      "iconFileName": "double_cooldown.png"
     },
     {
       "id": 25,
-      "key": "price_up",
+      "key": "exorbitant_price",
       "name": "加价",
+      "nameEn": "Exorbitant Price",
       "description": "地牢商品价格加倍",
-      "category": "MINOR_BAD"
+      "descriptionEn": "Store price +100%",
+      "category": "MINOR_BAD",
+      "iconFileName": "exorbitant_price.png"
     },
     {
       "id": 26,
       "key": "bomb_chest",
       "name": "炸弹宝箱",
+      "nameEn": "Bomb Chest",
       "description": "普通怪物房间奖励宝箱（白箱子）只会出现金币或炸弹",
-      "category": "MINOR_BAD"
+      "descriptionEn": "Bombs and coins may spawn in chests when you clear a room",
+      "category": "MINOR_BAD",
+      "iconFileName": "bomb_chest.png"
     },
     {
       "id": 27,
-      "key": "single_weapon",
+      "key": "one_hand",
       "name": "单武器",
+      "nameEn": "One Hand",
       "description": "默认只能携带一把武器",
-      "category": "MINOR_BAD"
+      "descriptionEn": "Can only carry one weapon",
+      "category": "MINOR_BAD",
+      "iconFileName": "one_hand.png"
     },
     {
       "id": 28,
-      "key": "no_pet",
+      "key": "lone_wolf",
       "name": "孤勇者",
+      "nameEn": "Lone Wolf",
       "description": "不能携带宠物及佣兵",
-      "category": "MINOR_BAD"
+      "descriptionEn": "No pets or mercenaries",
+      "category": "MINOR_BAD",
+      "iconFileName": "lone_wolf.png"
     },
     {
       "id": 29,
-      "key": "dizzy_enemy",
+      "key": "sprinting_enemies",
       "name": "跑起来的敌人",
+      "nameEn": "Sprinting Enemies",
       "description": "敌人变快，但是偶尔会眩晕",
-      "category": "NEUTRAL"
+      "descriptionEn": "Enemies move faster, but will be stunned from time to time",
+      "category": "NEUTRAL",
+      "iconFileName": "sprinting_enemies.png"
     },
     {
       "id": 30,
-      "key": "talent_choice_plus",
+      "key": "buff_choice_plus1",
       "name": "天赋选择+1",
+      "nameEn": "Buff Choice +1",
       "description": "减少一个天赋位置，选择天赋时增加1个选项",
-      "category": "NEUTRAL"
+      "descriptionEn": "Buff slot -1, but option +1 when you choose buffs",
+      "category": "NEUTRAL",
+      "iconFileName": "buff_choice_plus1.png"
     },
     {
       "id": 31,
-      "key": "talent_slot_plus",
+      "key": "buff_slot_plus1",
       "name": "天赋位置+1",
+      "nameEn": "Buff Slot +1",
       "description": "增加一个天赋位置，选择天赋时减少1个选项",
-      "category": "NEUTRAL"
+      "descriptionEn": "Buff slot +1, but option -1 when you choose buffs",
+      "category": "NEUTRAL",
+      "iconFileName": "buff_slot_plus1.png"
     },
     {
       "id": 32,
-      "key": "hard_shell",
+      "key": "shell_protection",
       "name": "硬壳守护",
+      "nameEn": "Shell Protection",
       "description": "战斗中护甲不会恢复，但拥有更强的防御力",
-      "category": "NEUTRAL"
+      "descriptionEn": "Better defense, but shield does not regenerate during combat",
+      "category": "NEUTRAL",
+      "iconFileName": "shell_protection.png"
     },
     {
       "id": 33,
       "key": "deja_vu",
       "name": "既视感",
+      "nameEn": "Deja Vu",
       "description": "可能会遇到完全一样的关卡",
-      "category": "NEUTRAL"
+      "descriptionEn": "You may encounter levels that you have encountered before",
+      "category": "NEUTRAL",
+      "iconFileName": "deja_vu.png"
     },
     {
       "id": 34,
-      "key": "time_flux",
+      "key": "time_fluctuation",
       "name": "时间流速不稳定",
+      "nameEn": "Time Fluctuation",
       "description": "你的行动变得时快时慢",
-      "category": "NEUTRAL"
+      "descriptionEn": "Your movement speed randomly increases or decreases",
+      "category": "NEUTRAL",
+      "iconFileName": "time_fluctuation.png"
     },
     {
       "id": 35,
-      "key": "single_enemy_type",
+      "key": "config_error",
       "name": "配置错误",
+      "nameEn": "Config Error",
       "description": "每个房间只会出现一种敌人",
-      "category": "NEUTRAL"
+      "descriptionEn": "Only one type of enemy will appear in each room",
+      "category": "NEUTRAL",
+      "iconFileName": "config_error.png"
     },
     {
       "id": 36,
       "key": "melee_only",
       "name": "近战限定",
+      "nameEn": "Melee Only",
       "description": "只能使用近战武器",
-      "category": "NEUTRAL"
+      "descriptionEn": "Melee weapons only",
+      "category": "NEUTRAL",
+      "iconFileName": "melee_only.png"
     },
     {
       "id": 37,
-      "key": "random_hero",
+      "key": "multiple_personalities",
       "name": "多重人格",
+      "nameEn": "Multiple Personalities",
       "description": "进入下一层时随机更换所选角色",
-      "category": "NEUTRAL"
+      "descriptionEn": "May switch character when you enter a new level",
+      "category": "NEUTRAL",
+      "iconFileName": "multiple_personalities.png"
     },
     {
       "id": 38,
-      "key": "weapon_reforge",
+      "key": "reforge_weapon",
       "name": "武器重铸",
+      "nameEn": "Reforge Weapon",
       "description": "每关开始时会重铸手上的武器",
-      "category": "NEUTRAL"
+      "descriptionEn": "Weapons get reforged at the start of each level",
+      "category": "NEUTRAL",
+      "iconFileName": "reforge_weapon.png"
     },
     {
       "id": 39,
-      "key": "crit_buff",
+      "key": "precision_booster",
       "name": "精准强化术",
+      "nameEn": "Precision Booster",
       "description": "武器的暴击率加倍，暴击伤害减半",
-      "category": "NEUTRAL"
+      "descriptionEn": "Weapon crit rate +100%, crit damage -50%",
+      "category": "NEUTRAL",
+      "iconFileName": "precision_booster.png"
     },
     {
       "id": 40,
-      "key": "giant",
+      "key": "giant_form",
       "name": "巨大化",
+      "nameEn": "Giant Form",
       "description": "角色体型变大，提升生命和护甲，减少移动速度",
-      "category": "NEUTRAL"
+      "descriptionEn": "Become larger and gain extra health and armor, but move slower",
+      "category": "NEUTRAL",
+      "iconFileName": "giant_form.png"
     },
     {
       "id": 41,
-      "key": "shrink",
+      "key": "shrinkage",
       "name": "缩小隧道",
+      "nameEn": "Shrinkage",
       "description": "角色体型变小，降低生命和护甲，增加移动速度",
-      "category": "NEUTRAL"
+      "descriptionEn": "Become smaller and lose health and armor, but move faster",
+      "category": "NEUTRAL",
+      "iconFileName": "shrinkage.png"
     },
     {
       "id": 42,
-      "key": "power_buff",
+      "key": "muscle_booster",
       "name": "肌肉强化术",
+      "nameEn": "Muscle Booster",
       "description": "武器的攻击力加倍，但攻击速度减半",
-      "category": "NEUTRAL"
+      "descriptionEn": "Weapon attack +100%, fire rate -50%",
+      "category": "NEUTRAL",
+      "iconFileName": "muscle_booster.png"
     },
     {
       "id": 43,
-      "key": "speed_buff",
+      "key": "speed_booster",
       "name": "攻速强化术",
+      "nameEn": "Speed Booster",
       "description": "武器攻击速度加倍，但伤害减半",
-      "category": "NEUTRAL"
+      "descriptionEn": "Weapon fire rate +100%, attack -50%",
+      "category": "NEUTRAL",
+      "iconFileName": "speed_booster.png"
     },
     {
       "id": 44,
-      "key": "weapon_gift",
+      "key": "mythical_artifact",
       "name": "天降神兵",
+      "nameEn": "Mythical Artifact",
       "description": "每进入一个新场景可以获得一把武器",
-      "category": "MINOR_GOOD"
+      "descriptionEn": "Get a weapon when entering a new biome",
+      "category": "MINOR_GOOD",
+      "iconFileName": "mythical_artifact.png"
     },
     {
       "id": 45,
-      "key": "mount_gift",
+      "key": "beastmaster",
       "name": "驯兽师",
+      "nameEn": "Beastmaster",
       "description": "每进入一个新场景可以获得一个坐骑",
-      "category": "MINOR_GOOD"
+      "descriptionEn": "A mount awaits when you enter a new biome",
+      "category": "MINOR_GOOD",
+      "iconFileName": "beastmaster.png"
     },
     {
       "id": 46,
-      "key": "revival",
+      "key": "revive_me",
       "name": "复活苏生",
+      "nameEn": "Revive Me",
       "description": "增加复活次数",
-      "category": "MINOR_GOOD"
+      "descriptionEn": "Gains +1 revival chance",
+      "category": "MINOR_GOOD",
+      "iconFileName": "revive_me.png"
     },
     {
       "id": 47,
-      "key": "special_room",
+      "key": "genie_lamp",
       "name": "神灯",
+      "nameEn": "Genie Lamp",
       "description": "每关都能额外遇到一个特殊房间",
-      "category": "MINOR_GOOD"
+      "descriptionEn": "A bonus room in each level",
+      "category": "MINOR_GOOD",
+      "iconFileName": "genie_lamp.png"
     },
     {
       "id": 48,
-      "key": "talent_buffet",
+      "key": "buff_buffet",
       "name": "天赋自助餐",
+      "nameEn": "Buff Buffet",
       "description": "选择天赋时增加2个选项",
-      "category": "MINOR_GOOD"
+      "descriptionEn": "Options +2 when you choose buffs",
+      "category": "MINOR_GOOD",
+      "iconFileName": "buff_buffet.png"
     },
     {
       "id": 49,
       "key": "good_luck",
       "name": "好运气",
+      "nameEn": "Good Luck",
       "description": "好运气",
-      "category": "MINOR_GOOD"
+      "descriptionEn": "Today is your lucky day",
+      "category": "MINOR_GOOD",
+      "iconFileName": "good_luck.png"
     },
     {
       "id": 50,
-      "key": "multi_statue",
+      "key": "multiple_statues",
       "name": "多重雕像",
+      "nameEn": "Multiple Statues",
       "description": "可以同时拥有多个雕像效果",
-      "category": "MINOR_GOOD"
+      "descriptionEn": "You can worship multiple statues",
+      "category": "MINOR_GOOD",
+      "iconFileName": "multiple_statues.png"
     },
     {
       "id": 51,
       "key": "infinite_energy",
       "name": "无限能量",
+      "nameEn": "Infinite Energy",
       "description": "拥有无限能量",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "Infinite energy",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "infinite_energy.png"
     },
     {
       "id": 52,
-      "key": "sale",
+      "key": "sales_day",
       "name": "特卖日",
+      "nameEn": "Sales Day",
       "description": "神秘商人的特卖活动已开启",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "Trader's special sale is on",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "sales_day.png"
     },
     {
       "id": 53,
-      "key": "combo_buff",
+      "key": "killing_spree",
       "name": "越战越勇",
+      "nameEn": "Killing Spree",
       "description": "连续击杀怪物会让角色变得更强",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "You get stronger as you acquire a killstreak",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "killing_spree.png"
     },
     {
       "id": 54,
       "key": "attachment_master",
       "name": "配件大师",
+      "nameEn": "Attachment Master",
       "description": "所有武器自带一个配件",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "All weapons are equipped with attachments",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "attachment_master.png"
     },
     {
       "id": 55,
-      "key": "life_regen",
+      "key": "regeneration",
       "name": "生命恢复术",
+      "nameEn": "Regeneration",
       "description": "生命低于50%时自动回复",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "Regenerate HP when it's below 50%",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "regeneration.png"
     },
     {
       "id": 56,
-      "key": "talent_gift",
+      "key": "exceptionally_talented",
       "name": "天赋异禀",
+      "nameEn": "Exceptionally Talented",
       "description": "额外获得3个天赋位置",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "Max number of buffs +3",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "exceptionally_talented.png"
     },
     {
       "id": 57,
-      "key": "crit_damage",
+      "key": "dagger_frenzy",
       "name": "疯狂匕首",
+      "nameEn": "Dagger Frenzy",
       "description": "暴击伤害增加",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "Increase critical damage",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "dagger_frenzy.png"
     },
     {
       "id": 58,
-      "key": "giant_pet",
+      "key": "gigantic_pet",
       "name": "宠物巨大化",
+      "nameEn": "Gigantic Pet",
       "description": "宠物巨大化，拥有更高的攻击力和攻击性",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "Pet is gigantic, more aggressive and deals higher damage",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "gigantic_pet.png"
     },
     {
       "id": 59,
-      "key": "cooldown_half",
+      "key": "halved_cooldown",
       "name": "冷却减半",
+      "nameEn": "Halved Cooldown",
       "description": "技能冷却时间减少50%",
-      "category": "MAJOR_GOOD"
+      "descriptionEn": "Skill cooldown -50%",
+      "category": "MAJOR_GOOD",
+      "iconFileName": "halved_cooldown.png"
     }
   ],
   "conflicts": [
