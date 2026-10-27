@@ -17,12 +17,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.domain.model.Factor
 import io.github.futurelesswindchan.kazefactor.ui.theme.success
 import io.github.futurelesswindchan.kazefactor.ui.theme.surface3
 import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
+import io.github.futurelesswindchan.kazefactor.ui.util.FactorIconMapper
 
 /**
  * 因子选择状态
@@ -116,32 +120,20 @@ private fun FactorItem(
     selectionState: FactorSelectionState,
     onClick: () -> Unit
 ) {
-    val borderColor: Color
-    val backgroundColor: Color
-    
-    when (selectionState) {
-        FactorSelectionState.WANTED -> {
-            borderColor = MaterialTheme.colorScheme.success
-            backgroundColor = MaterialTheme.colorScheme.success.copy(alpha = 0.1f)
-        }
-        FactorSelectionState.UNWANTED -> {
-            borderColor = MaterialTheme.colorScheme.error
-            backgroundColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
-        }
-        FactorSelectionState.NONE -> {
-            borderColor = MaterialTheme.colorScheme.outline
-            backgroundColor = MaterialTheme.colorScheme.surface
-        }
-    }
-    
+    val factorPainter = FactorIconMapper.rememberFactorPainter(factor)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(backgroundColor)
+            .background(if (selectionState == FactorSelectionState.NONE) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             .border(
                 width = 2.dp,
-                color = borderColor,
+                color = when (selectionState) {
+                    FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
+                    FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
+                    FactorSelectionState.NONE -> MaterialTheme.colorScheme.outline
+                },
                 shape = RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)
@@ -149,29 +141,54 @@ private fun FactorItem(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 图标/状态指示器
+        // 图标容器（带状态角标）
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface3),
+            modifier = Modifier.size(48.dp),
             contentAlignment = Alignment.Center
         ) {
-            when (selectionState) {
-                FactorSelectionState.WANTED -> Icon(
-                    Icons.Default.Check,
-                    contentDescription = "想要",
-                    tint = MaterialTheme.colorScheme.success
-                )
-                FactorSelectionState.UNWANTED -> Icon(
-                    Icons.Default.Close,
-                    contentDescription = "不想要",
-                    tint = MaterialTheme.colorScheme.error
-                )
-                FactorSelectionState.NONE -> Text(
-                    "🎲",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+            // 圆形底座 + 真实因子图标
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface3),
+                contentAlignment = Alignment.Center
+            ) {
+                if (factorPainter != null) {
+                    androidx.compose.foundation.Image(
+                        painter = factorPainter,
+                        contentDescription = factor.name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(34.dp)
+                    )
+                } else {
+                    Text("🎲", style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+
+            // 状态角标（右下角）
+            if (selectionState != FactorSelectionState.NONE) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when (selectionState) {
+                                FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
+                                FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
+                                else -> Color.Transparent
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (selectionState == FactorSelectionState.WANTED) Icons.Default.Check else Icons.Default.Close,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
             }
         }
         
