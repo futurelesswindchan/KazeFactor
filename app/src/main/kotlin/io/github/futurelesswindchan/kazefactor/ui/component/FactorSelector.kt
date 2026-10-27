@@ -1,10 +1,15 @@
 package io.github.futurelesswindchan.kazefactor.ui.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,9 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.domain.model.Factor
@@ -40,11 +43,20 @@ enum class FactorSelectionState {
 }
 
 /**
- * 因子选择器
+ * 因子选择器排布模式
+ */
+enum class FactorDisplayMode {
+    LIST,       // 详细长条卡片列表
+    GRID        // 紧凑纯图标网格
+}
+
+/**
+ * 因子选择器（支持列表模式与紧凑图标网格模式切换）
  * 
  * @param factorsByCategory 按类别分组的因子列表（Map<类别名, List<Factor>>）
  * @param selectionStates 当前选中状态（Map<因子ID, 选择状态>）
  * @param onFactorClick 因子点击回调（参数：因子ID，当前状态）
+ * @param displayMode 显示模式（列表 / 紧凑网格）
  * @param modifier 修饰符
  */
 @Composable
@@ -52,34 +64,72 @@ fun FactorSelector(
     factorsByCategory: Map<String, List<Factor>>,
     selectionStates: Map<Int, FactorSelectionState>,
     onFactorClick: (factorId: Int, currentState: FactorSelectionState) -> Unit,
+    displayMode: FactorDisplayMode = FactorDisplayMode.LIST,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        // 按类别分组展示
-        factorsByCategory.forEach { (categoryName, factors) ->
-            // 类别标题
-            item(key = "header_$categoryName") {
-                CategoryHeader(
-                    categoryName = getCategoryDisplayName(categoryName),
-                    factorCount = factors.size
-                )
+    when (displayMode) {
+        FactorDisplayMode.LIST -> {
+            LazyColumn(
+                modifier = modifier,
+                contentPadding = PaddingValues(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                factorsByCategory.forEach { (categoryName, factors) ->
+                    item(key = "header_$categoryName") {
+                        CategoryHeader(
+                            categoryName = getCategoryDisplayName(categoryName),
+                            factorCount = factors.size,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
+                    }
+
+                    items(
+                        items = factors,
+                        key = { it.id }
+                    ) { factor ->
+                        val state = selectionStates[factor.id] ?: FactorSelectionState.NONE
+                        FactorListItem(
+                            factor = factor,
+                            selectionState = state,
+                            onClick = { onFactorClick(factor.id, state) }
+                        )
+                    }
+                }
             }
-            
-            // 因子列表
-            items(
-                items = factors,
-                key = { it.id }
-            ) { factor ->
-                val state = selectionStates[factor.id] ?: FactorSelectionState.NONE
-                FactorItem(
-                    factor = factor,
-                    selectionState = state,
-                    onClick = { onFactorClick(factor.id, state) }
-                )
+        }
+
+        FactorDisplayMode.GRID -> {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 56.dp),
+                modifier = modifier,
+                contentPadding = PaddingValues(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                factorsByCategory.forEach { (categoryName, factors) ->
+                    item(
+                        key = "grid_header_$categoryName",
+                        span = { GridItemSpan(maxLineSpan) }
+                    ) {
+                        CategoryHeader(
+                            categoryName = getCategoryDisplayName(categoryName),
+                            factorCount = factors.size,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                        )
+                    }
+
+                    items(
+                        items = factors,
+                        key = { it.id }
+                    ) { factor ->
+                        val state = selectionStates[factor.id] ?: FactorSelectionState.NONE
+                        FactorGridItem(
+                            factor = factor,
+                            selectionState = state,
+                            onClick = { onFactorClick(factor.id, state) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -91,16 +141,17 @@ fun FactorSelector(
 @Composable
 private fun CategoryHeader(
     categoryName: String,
-    factorCount: Int
+    factorCount: Int,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = categoryName,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
@@ -112,28 +163,36 @@ private fun CategoryHeader(
 }
 
 /**
- * 单个因子项
+ * 列表模式：单个长条因子卡片
  */
 @Composable
-private fun FactorItem(
+private fun FactorListItem(
     factor: Factor,
     selectionState: FactorSelectionState,
     onClick: () -> Unit
 ) {
     val factorPainter = FactorIconMapper.rememberFactorPainter(factor)
 
+    val borderColor = when (selectionState) {
+        FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
+        FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
+        FactorSelectionState.NONE -> MaterialTheme.colorScheme.outline
+    }
+
+    val backgroundColor = when (selectionState) {
+        FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success.copy(alpha = 0.1f)
+        FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+        FactorSelectionState.NONE -> MaterialTheme.colorScheme.surface
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (selectionState == FactorSelectionState.NONE) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(backgroundColor)
             .border(
                 width = 2.dp,
-                color = when (selectionState) {
-                    FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
-                    FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
-                    FactorSelectionState.NONE -> MaterialTheme.colorScheme.outline
-                },
+                color = borderColor,
                 shape = RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)
@@ -146,7 +205,6 @@ private fun FactorItem(
             modifier = Modifier.size(48.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 圆形底座 + 真实因子图标
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -155,7 +213,7 @@ private fun FactorItem(
                 contentAlignment = Alignment.Center
             ) {
                 if (factorPainter != null) {
-                    androidx.compose.foundation.Image(
+                    Image(
                         painter = factorPainter,
                         contentDescription = factor.name,
                         contentScale = ContentScale.Fit,
@@ -166,32 +224,12 @@ private fun FactorItem(
                 }
             }
 
-            // 状态角标（右下角）
-            if (selectionState != FactorSelectionState.NONE) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(
-                            when (selectionState) {
-                                FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
-                                FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
-                                else -> Color.Transparent
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (selectionState == FactorSelectionState.WANTED) Icons.Default.Check else Icons.Default.Close,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
-            }
+            SelectionBadge(
+                selectionState = selectionState,
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
         }
-        
+
         // 因子信息
         Column(
             modifier = Modifier.weight(1f),
@@ -216,7 +254,96 @@ private fun FactorItem(
 }
 
 /**
- * 将类别枚举名转换为中文显示名
+ * 紧凑网格模式：只显示图标，选中/不选中通过边框与底色变色表示
+ */
+@Composable
+private fun FactorGridItem(
+    factor: Factor,
+    selectionState: FactorSelectionState,
+    onClick: () -> Unit
+) {
+    val factorPainter = FactorIconMapper.rememberFactorPainter(factor)
+
+    val borderColor = when (selectionState) {
+        FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
+        FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
+        FactorSelectionState.NONE -> MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+    }
+
+    val borderWidth = if (selectionState == FactorSelectionState.NONE) 1.5.dp else 2.5.dp
+
+    val backgroundColor = when (selectionState) {
+        FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success.copy(alpha = 0.16f)
+        FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error.copy(alpha = 0.16f)
+        FactorSelectionState.NONE -> MaterialTheme.colorScheme.surface3
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .background(backgroundColor)
+            .border(
+                width = borderWidth,
+                color = borderColor,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (factorPainter != null) {
+            Image(
+                painter = factorPainter,
+                contentDescription = factor.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(0.78f)
+            )
+        } else {
+            Text("🎲", style = MaterialTheme.typography.bodyLarge)
+        }
+
+        SelectionBadge(
+            selectionState = selectionState,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
+    }
+}
+
+/**
+ * 右下角选中状态小角标（想要 ✓ / 不想要 ✗）
+ */
+@Composable
+private fun SelectionBadge(
+    selectionState: FactorSelectionState,
+    modifier: Modifier = Modifier
+) {
+    if (selectionState != FactorSelectionState.NONE) {
+        Box(
+            modifier = modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(
+                    when (selectionState) {
+                        FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
+                        FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
+                        else -> Color.Transparent
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (selectionState == FactorSelectionState.WANTED) Icons.Default.Check else Icons.Default.Close,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(11.dp)
+            )
+        }
+    }
+}
+
+/**
+ * 获取类别的中文显示名称
  */
 private fun getCategoryDisplayName(categoryName: String): String {
     return when (categoryName) {
