@@ -27,21 +27,26 @@ import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
  * 
  * @param viewModel 配方列表 ViewModel
  * @param onNavigateToEditor 跳转到编辑界面（参数：配方 ID，null 表示新建）
- * @param onNavigateToRecipeCode 跳转到口令码界面（参数：配方 ID）
+ * @param onNavigateToRecipeCode 跳转到口令码界面（参数：配方 ID，null 表示导入模式）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeListScreen(
     viewModel: RecipeListViewModel,
     onNavigateToEditor: (String?) -> Unit,
-    onNavigateToRecipeCode: (String) -> Unit
+    onNavigateToRecipeCode: (String?) -> Unit
 ) {
     val recipes by viewModel.recipes.collectAsState()
     
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("KazeFactor - 配方管理") }
+                title = { Text("KazeFactor - 配方管理") },
+                actions = {
+                    TextButton(onClick = { onNavigateToRecipeCode(null) }) {
+                        Text("导入口令")
+                    }
+                }
             )
         },
         floatingActionButton = {

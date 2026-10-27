@@ -1,6 +1,8 @@
 package io.github.futurelesswindchan.kazefactor.ui.screen
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,26 +11,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.futurelesswindchan.kazefactor.domain.rule.Violation
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeEditorViewModel
 import io.github.futurelesswindchan.kazefactor.ui.component.FactorSelectionState
 import io.github.futurelesswindchan.kazefactor.ui.component.FactorSelector
 import io.github.futurelesswindchan.kazefactor.ui.component.RuleViolationCard
 import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
+import io.github.futurelesswindchan.kazefactor.ui.theme.warning
 import kotlinx.coroutines.launch
 
 /**
- * 配方编辑界面
- * 
- * @param viewModel 配方编辑 ViewModel
- * @param onNavigateBack 返回回调
- * @param onNavigateToRecipeCode 跳转到口令码界面（传入配方）
+ * 配方编辑界面（已优化：消除布局抖动、整合概率警告）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +48,10 @@ fun RecipeEditorScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     
+    // 过滤非阻塞性警告（低概率），这些将整合到 InfoCard 中
+    val blockingViolations = violations.filter { it.isBlocking }
+    val warningViolations = violations.filter { !it.isBlocking }
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -58,15 +62,12 @@ fun RecipeEditorScreen(
                     }
                 },
                 actions = {
-                    // 分享按钮（生成口令码）
                     IconButton(
                         onClick = { onNavigateToRecipeCode(currentRecipe.id) },
                         enabled = !hasBlockingErrors
                     ) {
                         Icon(Icons.Default.Share, contentDescription = "分享")
                     }
-                    
-                    // 保存按钮
                     IconButton(
                         onClick = {
                             scope.launch {
@@ -91,7 +92,6 @@ fun RecipeEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -100,16 +100,21 @@ fun RecipeEditorScreen(
                 value = recipeName,
                 onValueChange = { viewModel.updateRecipeName(it) },
                 label = { Text("配方名称") },
-                placeholder = { Text("例如：超简单因子、刷钱因子") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp)
             )
             
-            // 规则违规提示（错误 + 警告）
-            if (violations.isNotEmpty()) {
+            // 整合型信息栏（消除抖动）
+            InfoCard(
+                probability = probability,
+                hasWarnings = warningViolations.isNotEmpty()
+            )
+            
+            // 只有真正阻塞的错误才单独显示（它们确实需要修复，必须显示）
+            if (blockingViolations.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    violations.forEach { violation ->
+                    blockingViolations.forEach { violation ->
                         RuleViolationCard(
                             violation = violation,
                             onAutoFix = { viewModel.autoFixViolation(it) }
@@ -118,12 +123,13 @@ fun RecipeEditorScreen(
                 }
             }
             
-            // 概率显示
-            ProbabilityCard(probability = probability)
-            
-            // 可选因子最小数量调整（仅在有可选因子时显示）
+            // 可选因子最小数量控制区
             val optionalCount = factorSelections.count { it.value == FactorSelectionState.OPTIONAL }
-            if (optionalCount > 0) {
+            AnimatedVisibility(
+                visible = optionalCount > 0,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp)
@@ -134,7 +140,8 @@ fun RecipeEditorScreen(
                     ) {
                         Text(
                             text = "可选因子最小数量：$minOptional 个",
-                            style = MaterialTheme.typography.bodyLarge
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Slider(
                             value = minOptional.toFloat(),
@@ -146,40 +153,34 @@ fun RecipeEditorScreen(
                         Text(
                             text = "从 $optionalCount 个可选因子中，至少要出现 $minOptional 个",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.textTertiary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
             
-            // 因子选择器
+            // 因子选择区（使用 weight 填满剩余空间，独立滚动）
             Text(
                 text = "选择因子",
                 style = MaterialTheme.typography.headlineSmall
             )
-            Text(
-                text = "点击因子切换状态：想要（✓）→ 不想要（✗）→ 可选（★）→ 未选中",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.textTertiary
-            )
-            
             FactorSelector(
                 factorsByCategory = viewModel.getFactorsByCategory(),
                 selectionStates = factorSelections,
                 onFactorClick = { factorId, _ ->
                     viewModel.toggleFactorSelection(factorId)
                 },
-                modifier = Modifier.heightIn(max = 400.dp)
+                modifier = Modifier.weight(1f)
             )
         }
     }
 }
 
 /**
- * 概率显示卡片
+ * 整合型信息栏（命中概率 + 警告标识）
  */
 @Composable
-private fun ProbabilityCard(probability: Double) {
+private fun InfoCard(probability: Double, hasWarnings: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -187,43 +188,44 @@ private fun ProbabilityCard(probability: Double) {
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "命中概率",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            
-            if (probability > 0.0) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "${"%.4f".format(probability * 100)}%",
-                    style = MaterialTheme.typography.displayMedium,
+                    text = "命中概率",
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                val expectedRefreshCount = (1.0 / probability).toLong()
                 Text(
-                    text = "预计刷约 $expectedRefreshCount 次",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.textTertiary,
-                    textAlign = TextAlign.Center
+                    text = if (probability > 0.0) "${"%.2f".format(probability * 100)}%" else "—",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-            } else {
-                Text(
-                    text = "—",
-                    style = MaterialTheme.typography.displayMedium,
-                    color = MaterialTheme.colorScheme.textTertiary
-                )
-                Text(
-                    text = "请先选择想要的因子",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.textTertiary
-                )
+            }
+            
+            if (hasWarnings) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "警告",
+                        tint = MaterialTheme.colorScheme.warning,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "概率较低",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
         }
     }

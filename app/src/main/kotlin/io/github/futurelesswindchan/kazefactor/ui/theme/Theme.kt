@@ -30,6 +30,11 @@ private val LightColorScheme = lightColorScheme(
     onSurface = LightColors.textPrimary,
     surfaceVariant = LightColors.surface2,
     onSurfaceVariant = LightColors.textSecondary,
+    surfaceContainerLowest = LightColors.surface1,
+    surfaceContainerLow = LightColors.surface1,
+    surfaceContainer = LightColors.surface2,
+    surfaceContainerHigh = LightColors.surface2,
+    surfaceContainerHighest = LightColors.surface3,
     
     error = ErrorRed,
     onError = Color.White,
@@ -54,6 +59,11 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = DarkColors.textPrimary,
     surfaceVariant = DarkColors.surface2,
     onSurfaceVariant = DarkColors.textSecondary,
+    surfaceContainerLowest = DarkColors.surface1,
+    surfaceContainerLow = DarkColors.surface1,
+    surfaceContainer = DarkColors.surface2,
+    surfaceContainerHigh = DarkColors.surface2,
+    surfaceContainerHighest = DarkColors.surface3,
     
     error = ErrorRed,
     onError = Color.White,
