@@ -46,17 +46,12 @@ class RecipeListViewModel(
     fun getRecipeSummary(recipe: Recipe): String {
         val wantedCount = recipe.wantedFactorIds.size
         val unwantedCount = recipe.unwantedFactorIds.size
-        val optionalCount = recipe.optionalFactorIds.size
         
         return buildString {
             if (wantedCount > 0) append("想要 $wantedCount 个")
             if (unwantedCount > 0) {
                 if (isNotEmpty()) append(" · ")
                 append("不要 $unwantedCount 个")
-            }
-            if (optionalCount > 0) {
-                if (isNotEmpty()) append(" · ")
-                append("可选 $optionalCount 个")
             }
             if (isEmpty()) append("空配方")
         }

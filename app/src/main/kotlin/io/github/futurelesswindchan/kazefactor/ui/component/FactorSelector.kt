@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,20 +20,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.domain.model.Factor
-import io.github.futurelesswindchan.kazefactor.domain.model.FactorCategory
 import io.github.futurelesswindchan.kazefactor.ui.theme.success
 import io.github.futurelesswindchan.kazefactor.ui.theme.surface3
 import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
-import io.github.futurelesswindchan.kazefactor.ui.theme.warning
 
 /**
  * 因子选择状态
+ *
+ * 未选中（NONE）即代表默认可选/不限制；点击循环：未选中 -> 想要 -> 不想要 -> 未选中
  */
 enum class FactorSelectionState {
-    NONE,       // 未选中
-    WANTED,     // 想要
-    UNWANTED,   // 不想要
-    OPTIONAL    // 可选
+    NONE,       // 默认（可选/不限制）
+    WANTED,     // 想要（必出）
+    UNWANTED    // 不想要（排除）
 }
 
 /**
@@ -130,10 +128,6 @@ private fun FactorItem(
             borderColor = MaterialTheme.colorScheme.error
             backgroundColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
         }
-        FactorSelectionState.OPTIONAL -> {
-            borderColor = MaterialTheme.colorScheme.warning
-            backgroundColor = MaterialTheme.colorScheme.warning.copy(alpha = 0.1f)
-        }
         FactorSelectionState.NONE -> {
             borderColor = MaterialTheme.colorScheme.outline
             backgroundColor = MaterialTheme.colorScheme.surface
@@ -173,11 +167,6 @@ private fun FactorItem(
                     Icons.Default.Close,
                     contentDescription = "不想要",
                     tint = MaterialTheme.colorScheme.error
-                )
-                FactorSelectionState.OPTIONAL -> Icon(
-                    Icons.Default.Star,
-                    contentDescription = "可选",
-                    tint = MaterialTheme.colorScheme.warning
                 )
                 FactorSelectionState.NONE -> Text(
                     "🎲",
