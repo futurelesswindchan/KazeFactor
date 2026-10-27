@@ -3,6 +3,7 @@ package io.github.futurelesswindchan.kazefactor.domain.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.futurelesswindchan.kazefactor.data.repository.RecipeRepository
+import io.github.futurelesswindchan.kazefactor.domain.model.Factor
 import io.github.futurelesswindchan.kazefactor.domain.model.Recipe
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -66,5 +67,12 @@ class RecipeListViewModel(
         } else {
             repository.calculateProbability(recipe)
         }
+    }
+
+    /**
+     * 根据 ID 获取因子对象（用于卡片图标展示）
+     */
+    fun getFactorById(id: Int): Factor? {
+        return repository.getFactorById(id)
     }
 }

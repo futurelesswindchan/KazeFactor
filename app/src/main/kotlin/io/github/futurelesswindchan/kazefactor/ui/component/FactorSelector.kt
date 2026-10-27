@@ -343,6 +343,67 @@ private fun SelectionBadge(
 }
 
 /**
+ * 小巧紧凑型因子图标块（用于编辑页置顶已选栏与主界面配方卡片预览）
+ *
+ * @param factor 挑战因子
+ * @param selectionState 选中状态（WANTED 绿框 / UNWANTED 红框）
+ * @param size 图标框尺寸
+ * @param onClick 点击回调（可选）
+ */
+@Composable
+fun CompactFactorChip(
+    factor: Factor,
+    selectionState: FactorSelectionState,
+    size: androidx.compose.ui.unit.Dp = 44.dp,
+    onClick: (() -> Unit)? = null
+) {
+    val factorPainter = FactorIconMapper.rememberFactorPainter(factor)
+
+    val borderColor = when (selectionState) {
+        FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success
+        FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error
+        FactorSelectionState.NONE -> MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+    }
+
+    val backgroundColor = when (selectionState) {
+        FactorSelectionState.WANTED -> MaterialTheme.colorScheme.success.copy(alpha = 0.16f)
+        FactorSelectionState.UNWANTED -> MaterialTheme.colorScheme.error.copy(alpha = 0.16f)
+        FactorSelectionState.NONE -> MaterialTheme.colorScheme.surface3
+    }
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .border(
+                width = 2.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(5.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (factorPainter != null) {
+            Image(
+                painter = factorPainter,
+                contentDescription = factor.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(0.8f)
+            )
+        } else {
+            Text("🎲", style = MaterialTheme.typography.bodySmall)
+        }
+
+        SelectionBadge(
+            selectionState = selectionState,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
+    }
+}
+
+/**
  * 获取类别的中文显示名称
  */
 private fun getCategoryDisplayName(categoryName: String): String {

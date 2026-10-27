@@ -3,6 +3,8 @@ package io.github.futurelesswindchan.kazefactor.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,8 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.github.futurelesswindchan.kazefactor.domain.model.Factor
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeEditorViewModel
+import io.github.futurelesswindchan.kazefactor.ui.component.CompactFactorChip
 import io.github.futurelesswindchan.kazefactor.ui.component.FactorDisplayMode
+import io.github.futurelesswindchan.kazefactor.ui.component.FactorSelectionState
 import io.github.futurelesswindchan.kazefactor.ui.component.FactorSelector
 import io.github.futurelesswindchan.kazefactor.ui.component.RuleViolationCard
 import io.github.futurelesswindchan.kazefactor.ui.theme.surface3
@@ -29,7 +34,7 @@ import io.github.futurelesswindchan.kazefactor.ui.theme.warning
 import kotlinx.coroutines.launch
 
 /**
- * 配方编辑界面（支持列表与紧凑图标网格双模式切换）
+ * 配方编辑界面（支持列表与紧凑图标网格双模式切换 + 置顶已选/排除预览栏）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +54,22 @@ fun RecipeEditorScreen(
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val factorsByCategory = remember { viewModel.getFactorsByCategory() }
+    val allFactorsMap = remember(factorsByCategory) {
+        factorsByCategory.values.flatten().associateBy { it.id }
+    }
+
+    // 汇总已选（想要）和排除（不想要）的因子，想要排在前面，排除排在后面
+    val pinnedSelectedFactors = remember(factorSelections, allFactorsMap) {
+        val wanted = factorSelections.entries
+            .filter { it.value == FactorSelectionState.WANTED }
+            .mapNotNull { entry -> allFactorsMap[entry.key]?.let { it to entry.value } }
+        val unwanted = factorSelections.entries
+            .filter { it.value == FactorSelectionState.UNWANTED }
+            .mapNotNull { entry -> allFactorsMap[entry.key]?.let { it to entry.value } }
+        wanted + unwanted
+    }
 
     // 过滤非阻塞性警告（低概率），这些将整合到 InfoCard 中
     val blockingViolations = violations.filter { it.isBlocking }
@@ -108,10 +129,14 @@ fun RecipeEditorScreen(
                 shape = RoundedCornerShape(16.dp)
             )
 
-            // 整合型信息栏（常驻固定高度，消除抖动）
+            // 整合型信息栏（常驻固定高度：命中概率 + 置顶已选/排除因子槽）
             InfoCard(
                 probability = probability,
-                hasWarnings = warningViolations.isNotEmpty()
+                hasWarnings = warningViolations.isNotEmpty(),
+                pinnedFactors = pinnedSelectedFactors,
+                onPinnedFactorClick = { factorId ->
+                    viewModel.toggleFactorSelection(factorId)
+                }
             )
 
             // 只有真正阻塞的错误才单独显示（它们确实需要修复，必须显示）
@@ -154,7 +179,7 @@ fun RecipeEditorScreen(
             }
 
             FactorSelector(
-                factorsByCategory = viewModel.getFactorsByCategory(),
+                factorsByCategory = factorsByCategory,
                 selectionStates = factorSelections,
                 onFactorClick = { factorId, _ ->
                     viewModel.toggleFactorSelection(factorId)
@@ -231,10 +256,15 @@ private fun ModePillItem(
 }
 
 /**
- * 整合型信息栏（命中概率 + 预计次数 + 警告标识）
+ * 整合型信息栏（命中概率 + 预计次数 + 警告标识 + 置顶已选/排除因子横向栏）
  */
 @Composable
-private fun InfoCard(probability: Double, hasWarnings: Boolean) {
+private fun InfoCard(
+    probability: Double,
+    hasWarnings: Boolean,
+    pinnedFactors: List<Pair<Factor, FactorSelectionState>>,
+    onPinnedFactorClick: (Int) -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -242,59 +272,102 @@ private fun InfoCard(probability: Double, hasWarnings: Boolean) {
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "命中概率",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Text(
-                    text = if (probability > 0.0) "${"%.4f".format(probability * 100)}%" else "—",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            // 上半部分：命中概率 + 预计次数 / 低概率警告
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (probability > 0.0) {
-                    val expectedRefreshCount = (1.0 / probability).toLong().coerceAtLeast(1L)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "预计刷约 $expectedRefreshCount 次",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "命中概率",
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                } else {
                     Text(
-                        text = "请选择想要的因子",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        text = if (probability > 0.0) "${"%.4f".format(probability * 100)}%" else "—",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
 
-                if (hasWarnings) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "警告",
-                            tint = MaterialTheme.colorScheme.warning,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (probability > 0.0) {
+                        val expectedRefreshCount = (1.0 / probability).toLong().coerceAtLeast(1L)
                         Text(
-                            text = "命中概率较低",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = "预计刷约 $expectedRefreshCount 次",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
+                    } else {
+                        Text(
+                            text = "请选择想要的因子",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    if (hasWarnings) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "警告",
+                                tint = MaterialTheme.colorScheme.warning,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "命中概率较低",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f)
+            )
+
+            // 下半部分：常驻固定高度的「已选与排除」置顶预览槽（绝不引起界面跳动）
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (pinnedFactors.isEmpty()) {
+                    Text(
+                        text = "暂未选择因子（在下方点选后将置顶汇总于此）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
+                    )
+                } else {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items(
+                            items = pinnedFactors,
+                            key = { it.first.id }
+                        ) { (factor, state) ->
+                            CompactFactorChip(
+                                factor = factor,
+                                selectionState = state,
+                                size = 44.dp,
+                                onClick = { onPinnedFactorClick(factor.id) }
+                            )
+                        }
                     }
                 }
             }

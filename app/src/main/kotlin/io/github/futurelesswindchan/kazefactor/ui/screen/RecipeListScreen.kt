@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +21,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.domain.model.Recipe
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeListViewModel
+import io.github.futurelesswindchan.kazefactor.ui.component.CompactFactorChip
+import io.github.futurelesswindchan.kazefactor.ui.component.FactorSelectionState
 import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
 
 /**
@@ -156,6 +159,15 @@ private fun RecipeCard(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val probability = remember(recipe) { viewModel.getRecipeProbability(recipe) }
     val summary = remember(recipe) { viewModel.getRecipeSummary(recipe) }
+    val previewFactors = remember(recipe) {
+        val wanted = recipe.wantedFactorIds.mapNotNull { id ->
+            viewModel.getFactorById(id)?.let { it to FactorSelectionState.WANTED }
+        }
+        val unwanted = recipe.unwantedFactorIds.mapNotNull { id ->
+            viewModel.getFactorById(id)?.let { it to FactorSelectionState.UNWANTED }
+        }
+        wanted + unwanted
+    }
     
     Card(
         modifier = Modifier
@@ -204,6 +216,25 @@ private fun RecipeCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.textTertiary
             )
+
+            // 配方内已选（想要）与排除（不想要）的因子图标预览
+            if (previewFactors.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items(
+                        items = previewFactors,
+                        key = { it.first.id }
+                    ) { (factor, state) ->
+                        CompactFactorChip(
+                            factor = factor,
+                            selectionState = state,
+                            size = 42.dp
+                        )
+                    }
+                }
+            }
             
             // 操作按钮
             Row(
