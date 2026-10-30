@@ -1,103 +1,239 @@
 # KazeFactor 项目交接备忘录
 
-> 最后更新：2026-10-25｜当前阶段：选项 A（core-domain 纯逻辑），差口令码模块
+> 最后更新：2026-10-30
+> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行；游戏内识别与自动刷新部分尚未开始。
+> 最新提交：`91b3630`
 
-## 1. 项目是什么
+本文件面向接手开发的任何人员。下文中「维护者」指项目所有者，「本文」所述状态均已对照仓库实际代码核实；未经本轮运行验证的结论会单独注明。
 
-《元气骑士》联机模式「挑战因子」自动刷新工具（Android）。玩家手动进入因子配置界面 → 悬浮窗选配方 → 点开始 → 无障碍截图识别 4 个槽位 → 未命中就点刷新，直到命中。
+---
 
-- 开源：代码 GPL-3.0，发布到 GitHub + B站；不做防检测、不做自动更新
-- 因子图标已获 wiki 工作组与凉屋官方客服授权放进仓库，但必须注明：不适用开源协议，版权归凉屋游戏（见 ICON_LICENSE.txt）
-- 主人是 vibecoding 全栈，不熟 Android；风风酱主力写代码
+## 1. 项目概述
 
-## 2. 主人已确认的需求与决策
+KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与自动刷新工具（Android）。
 
-- 必须由玩家手动进入因子界面才能启动识别
-- 配方：想要 / 不想要 / 可选（至少 m 个）三种语义；配方保存 + 口令码分享；用户自行命名
-- 自动纠正：超过 4 个、想要与不想要冲突、想要之间冲突、排除过多、不可能组合
-- **R6 低命中率 = 仅小悬浮字提示，不阻塞**（选择权交给用户）
-- 刷新频率上限 1~10 次/秒，用户自己设置
-- factors.json 每个因子带效果描述（以后悬浮窗展示用）
-- 实机特征：**刷新没有动画**，按钮也没有形变，点完可以直接截图识别
-- 测试机分辨率 2388×1080（目前只有这一台）
+完整使用流程（最终目标）：玩家手动进入游戏内因子配置界面 → 在悬浮窗中选择配方 → 点击开始 → 无障碍服务截图并识别 4 个槽位 → 未命中则点击刷新，直到命中。
+
+- 开源协议：代码为 GPL-3.0，计划发布到 GitHub 与 B 站；不做防检测，不做自动更新。
+- 因子图标已获 wiki 工作组与凉屋游戏官方客服授权放入仓库，但不适用开源协议，版权归凉屋游戏所有，详见 `ICON_LICENSE.txt`。
+- 维护者为全栈开发者，不熟悉 Android；代码主要由 AI 助手编写，维护者负责构建、真机测试与提交。
+
+---
+
+## 2. 已确认的需求与决策
+
+以下决策以本文为准，若与旧文档或 README 冲突，按本文执行。
+
+- 必须由玩家手动进入因子界面后才能启动识别。
+- **配方语义已简化为三态**（2026-10 决策）：
+  - 想要（WANTED）：必须全部出现。
+  - 不想要（UNWANTED）：一个都不能出现。
+  - 默认（NONE）：不作限制。
+  - 原「可选（至少出现 m 个）」语义已从 UI 与交互中移除，原因是它与「默认」在用户理解上存在歧义。底层模型字段仍保留，见第 7.3 节。
+- 配方支持保存、编辑、删除、口令码分享与导入；配方名由用户自行命名，不写入口令码。
+- 自动纠正覆盖：超过 4 个、想要与不想要重叠、想要之间冲突、排除过多、不可能组合。
+- R6 低命中率仅作提示，不阻塞保存与开始。UI 中以命中概率横幅内的小标签呈现。
+- 刷新频率上限 1~10 次/秒，由用户设置（尚未实现）。
+- 实机特征：刷新没有动画，按钮没有形变，点击后可直接截图识别。
+- 测试机分辨率 2388×1080，目前仅有这一台。
+- 应用桌面图标与开屏页必须使用原创图形，不得使用游戏因子图标；开屏页底部须注明因子图标版权归凉屋游戏所有。
+
+---
 
 ## 3. 工程环境（已验证可构建）
 
-- 路径 `D:\AndroidStudioProjects\KazeFactor`，包名 `io.github.futurelesswindchan.kazefactor`
-- 模块：`app`（Compose 模板，还没改过）、`core-domain`（纯 Kotlin JVM：java-library + kotlin.jvm + kotlin.serialization）
-- Gradle 9.6.0、AGP 9.4.1（**内置 Kotlin，app 不要加 kotlin-android 插件**）、Kotlin 2.2.10、Compose BOM 2026.02.01、compile/targetSdk 37、minSdk 26
-- 新增依赖：kotlinx-serialization-json 1.8.0、kotlin-test（都在 libs.versions.toml）
-- 已删除 `gradle/gradle-daemon-jvm.properties`（它要求下载 JDK 25，网络失败）；gradle.properties 加了 `org.gradle.java.installations.auto-download=false`
-- 终端是 PowerShell 5.1：不支持 `&&`，用 `;`。readFile 读不了 `.kts`，要用 `Get-Content`
-- 测试命令：`.\gradlew.bat :core-domain:test --console=plain`；结果看 `core-domain\build\test-results\test\*.xml`
+- 路径：`D:\AndroidStudioProjects\KazeFactor`；包名：`io.github.futurelesswindchan.kazefactor`
+- 模块：
+  - `core-domain`：纯 Kotlin JVM 模块（java-library + kotlin.jvm + kotlin.serialization），无 Android 依赖。
+  - `app`：Android 应用模块，依赖 `core-domain`。
+- 工具链：Gradle 9.6.0、AGP 9.4.1（**内置 Kotlin 支持，`app` 不要再添加 kotlin-android 插件**）、Kotlin 2.2.10、Compose BOM 2026.02.01、compileSdk / targetSdk 37、minSdk 26、Java 11 字节码。
+- 主要依赖（版本见 `gradle/libs.versions.toml`）：navigation-compose 2.10.2、lifecycle-viewmodel-compose 2.11.0、datastore-preferences 1.2.0、kotlinx-serialization-json 1.8.0、material-icons-extended。
+- 已删除 `gradle/gradle-daemon-jvm.properties`（它要求下载 JDK 25，网络失败），并在 `gradle.properties` 中设置 `org.gradle.java.installations.auto-download=false`。`.gitignore` 也已忽略该文件。
+- 常用命令（PowerShell 5.1，不支持 `&&`，请用 `;`）：
+  - 领域层单元测试：`.\gradlew.bat :core-domain:test --console=plain`，结果见 `core-domain\build\test-results\test\*.xml`
+  - 构建：`.\gradlew assembleDebug`；安装到设备：`.\gradlew installDebug`
 
-## 4. Git 状态
+---
 
-- 已提交：899a5cf（模板）→ 06037db（阶段1 基础设施）→ 535d8fd（图标、截图、数据模型更新）
-- **未提交**：rule/ 下的规则引擎、概率计算和测试，Recipe/SlotConstraint/FactorDatabase 的修改，以及本文件
+## 4. Git 状态与提交约定
+
+- 工作区干净，最新提交 `91b3630`。本文件的本次更新需要单独提交。
+- 提交约定（维护者要求）：
+  - 每完成一个最小可提交的进度就提交一次。
+  - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
+  - `git add/commit`、构建、安装等有副作用的命令由维护者亲自执行。
+
+近期提交（新 → 旧）：
+
+| 提交 | 内容 |
+| --- | --- |
+| 91b3630 | 忽略 Android Studio 设备管理器界面配置 |
+| eddd1e1 | 天蓝底表情包自适应图标；README 引入艺术字 Logo；清理根目录冗余素材 |
+| 24f2360 | 已选与排除因子置顶预览槽、列表卡片图标展示、分类名汉化补全 |
+| 24d2c6e | 因子选择池紧凑图标网格模式与视图切换 |
+| dc3f5e4 | 接入真实因子像素图标与选中状态角标 |
+| 4ec3a99 | 移除可选因子状态与数量滑块，简化为三态点选 |
+| 90a34ae | 修复编辑页布局跳动，整合概率横幅，修正主题配色 |
+| 8dcc172 | 集成 Navigation Compose 与 ViewModelFactory |
+| 090b2f9 及更早 | 数据层、三大界面、主题、口令码、规则引擎、领域模型 |
+
+---
 
 ## 5. 资源位置
 
-- 因子图标原图：`texture2DEng/`（59 个 PNG，snake_case 命名），已复制到 `app/src/main/assets/factors/icons/`
-- 实机截图：`screenshot/`（disable01~07 问号状态，enable01~40 已刷新状态，背景有模式/难度干扰），已复制到 `app/src/androidTest/assets/screenshots/`
-- 因子数据：`core-domain/src/test/resources/factors.json`（**目前只在 test 资源里**，以后要挪到 main 或 app assets）
-  - 字段：id(1~59，发布后永不改)、key、name、nameEn、description、descriptionEn、category、iconFileName
-  - 11 组冲突对写在 `conflicts`；`exclusiveGroups` 为空
-- 命名标准以主人给的 CSV 为准（中英文名、文件名、中英文描述），factors.json 已按它生成
+| 资源 | 位置 | 说明 |
+| --- | --- | --- |
+| 因子数据（运行时） | `app/src/main/assets/factors.json` | 由 `AssetFactorLoader` 加载 |
+| 因子数据（测试用） | `core-domain/src/test/resources/factors.json` | 领域层测试读取；与上一份为两份独立副本，修改时须同步 |
+| 因子图标（运行时） | `app/src/main/res/drawable/*.png`（59 个） | 由 `FactorIconMapper` 按 `key` 动态查找 |
+| 因子图标（副本） | `app/src/main/assets/factors/icons/*.png`（59 个） | 当前代码未引用，见第 9 节 |
+| 实机截图 | `app/src/androidTest/assets/screenshots/`（47 张） | `disable01~07` 为问号状态，`enable01~40` 为已刷新状态；当前尚无测试代码引用 |
+| README Logo | `assets/logo/`（`KAZE FACTOR.svg`、`K.svg`、`Pinia.png/.webp`） | 仅供 README 使用，不打包进 APK |
+| 应用图标 | `res/mipmap-anydpi/ic_launcher*.xml` + `res/drawable/ic_launcher_foreground_emoji.xml` + `res/mipmap-*/ic_launcher_emoji.png` | 见第 7.4 节 |
+
+根目录原有的 `screenshot/` 与 `texture2DEng/` 已于 `eddd1e1` 删除，其内容在上表中的位置保留副本。
+
+`factors.json` 字段：`id`（1~59，发布后永不改变）、`key`、`name`、`nameEn`、`description`、`descriptionEn`、`category`、`iconFileName`；另含 11 组冲突对 `conflicts`，`exclusiveGroups` 为空。命名标准以维护者提供的 CSV 为准。
+
+---
 
 ## 6. 游戏规则（来自灰机 wiki，已编码）
 
-- 59 个普通因子：大恶 6（id 1~6）、中恶 14（7~20）、小恶 8（21~28）、中性 15（29~43）、小良 7（44~50）、大良 9（51~59）
-- 枚举名：MAJOR_BAD / MODERATE_BAD / MINOR_BAD / NEUTRAL / MINOR_GOOD / MAJOR_GOOD
-- 槽位：第1位 大恶/中恶/小恶；第2位 中恶/小恶/中性；第3位 小恶/中性/小良/大良；第4位 小良/大良
-- 17 种合法类别序列在 `SlotConstraint` 枚举（PATTERN_1~17，按槽位 1→4）
+- 59 个普通因子：大恶 6（id 1~6）、中恶 14（7~20）、小恶 8（21~28）、中性 15（29~43）、小良 7（44~50）、大良 9（51~59）。已于 2026-10-30 对照 `factors.json` 复核。
+- 类别枚举：`MAJOR_BAD` / `MODERATE_BAD` / `MINOR_BAD` / `NEUTRAL` / `MINOR_GOOD` / `MAJOR_GOOD`。
+- 槽位：第 1 位为大恶/中恶/小恶；第 2 位为中恶/小恶/中性；第 3 位为小恶/中性/小良/大良；第 4 位为小良/大良。
+- 17 种合法类别序列定义在 `SlotConstraint` 枚举（`PATTERN_1~17`，按槽位 1→4）。
 
-## 7. 代码现状（core-domain）
+---
+
+## 7. 代码现状
+
+### 7.1 core-domain（`core-domain/src/main/kotlin/.../domain/`）
 
 ```
 model/
   Factor.kt          Factor + FactorCategory，canAppearInSlot()
   FactorDatabase.kt  查询、areConflicting、getAllFactorIds
-  Recipe.kt          wanted/unwanted/optional 都是 Set<Int>，minOptional；matches(4个id)
-                     init 只拦负数，业务错误交给 RuleEngine（这样 UI 能展示）
+  Recipe.kt          wanted / unwanted / optional 三个 Set<Int> 与 minOptional；matches(4 个 id)
+                     init 只拦截负数，业务错误交给 RuleEngine，以便 UI 展示
   SlotConstraint.kt  17 种组合 + toCategories() + findPattern()
 rule/
   ProbabilityCalculator.kt  穷举全部合法结果（17 组合 × 去重 × 冲突剪枝），
-                            假设等概率；unwanted 不缩小抽取池；总数缓存
-  Violation.kt       sealed class，带 severity(ERROR/WARNING)、isBlocking、suggestion
-  RuleEngine.kt      validate / canStart(只看 ERROR) / isValid / autoFix
-test/
-  testutil/TestFactorDatabase.kt  loadFactorDatabase() 读真实 factors.json
-  FactorDatabaseTest(11) SlotConstraintTest(4) rule/ProbabilityCalculatorTest(9) rule/RuleEngineTest(13)
+                            假设等概率；unwanted 不缩小抽取池；总数有缓存
+  Violation.kt       sealed class，带 severity(ERROR/WARNING)、isBlocking、suggestion；
+                     LowProbability 默认阈值 0.001（0.1%）
+  RuleEngine.kt      validate / canStart（只看 ERROR）/ isValid / autoFix
+codec/
+  RecipeCodec.kt     口令码编解码，格式 SKF1-<Base32(payload)>-<CRC8>
+  Base32Encoder.kt   去除易混字符的 Base32（手写，无外部依赖）
+  CRC8Calculator.kt  CRC8 校验（手写）
+  VarintCodec.kt     变长整数编码
 ```
 
-规则：R1 超过4个、R2 想要/不想要重叠、R3 想要之间冲突（前三条有就直接返回）；R4 只看不想要已凑不出结果；R5 只看想要就不可能；R6 低于阈值（默认 0.1%）为 WARNING。R4/R5 都靠"概率为 0"判断，规则只在概率计算器里实现一次。
+规则：R1 超过 4 个、R2 想要/不想要重叠、R3 想要之间冲突（前三条命中即直接返回）；R4 仅看不想要时已凑不出结果；R5 仅看想要时不可能；R6 低于阈值为 WARNING。R4/R5 依靠「概率为 0」判断，规则逻辑只在概率计算器中实现一次。
 
-上次测试结果：37 个测试，0 失败。概率参考：只要无限能量 8.74%（约 11.4 次），无限能量+特卖日 0.171%（约 584 次）。
+口令码 payload：dataVersion(varint) | flags | wanted ids | unwanted ids | optional ids + minOptional。遇到不认识的 id 提示「请更新 App」，CRC 错误提示「粘贴有误」，均不崩溃。
+
+测试（`core-domain/src/test/kotlin/`）：FactorDatabaseTest(11)、SlotConstraintTest(4)、ProbabilityCalculatorTest(9)、RuleEngineTest(13)、RecipeCodecTest(14)、VarintCodecTest(14)、Base32EncoderTest(10)、CRC8CalculatorTest(10)，共 85 个 `@Test` 方法。**本轮未运行领域层测试**，接手后应先运行一次确认结果。概率参考值：只要「无限能量」为 8.74%（约 11.4 次），「无限能量 + 特卖日」为 0.171%（约 584 次）。
+
+`core-domain/src/main/java/.../domain/LegendaryClassName.kt` 是模板生成的空类，无任何引用，可删除。
+
+### 7.2 app（`app/src/main/kotlin/.../`，`MainActivity.kt` 位于 `app/src/main/java/.../`）
+
+```
+KazeFactorApplication.kt     全局手动依赖注入：factorDatabase、recipeRepository（lazy 单例）
+MainActivity.kt              Surface + NavHost，串联三个界面；从 Application 取依赖
+util/AssetFactorLoader.kt    从 assets/factors.json 加载 FactorDatabase
+data/
+  datastore/RecipeDataStore.kt     DataStore Preferences（文件名 recipe_storage，键 recipes_json），
+                                   存配方 JSON 列表；含未知因子 id 的配方在读取时被过滤
+  repository/RecipeRepository.kt   单例；封装 DataStore、因子查询、RuleEngine、ProbabilityCalculator
+domain/viewmodel/
+  ViewModelFactory.kt          手动工厂，参数为 repository、database、可选 recipeId
+  RecipeListViewModel.kt       配方列表、删除、摘要、概率、按 id 取因子
+  RecipeEditorViewModel.kt     三态选择、实时校验与概率、autoFix、保存
+  RecipeCodeViewModel.kt       口令码生成与导入
+ui/
+  navigation/Navigation.kt     字符串路由：recipe_list、recipe_editor?recipeId=、recipe_code?recipeId=
+  screen/RecipeListScreen.kt   配方列表；卡片展示想要/排除因子图标；顶栏「导入口令」入口
+  screen/RecipeEditorScreen.kt 配方编辑；固定高度的概率横幅（含低概率标签与已选/排除置顶槽）；
+                               图标网格 / 列表视图切换（默认网格）
+  screen/RecipeCodeScreen.kt   recipeId 非空为导出模式，为空为导入模式
+  component/FactorSelector.kt  FactorSelectionState（NONE/WANTED/UNWANTED）、FactorDisplayMode、
+                               列表项、网格项、CompactFactorChip、状态角标、分类中文名
+  component/RuleViolationCard.kt  阻塞性错误卡片与一键修复
+  util/FactorIconMapper.kt     按 key 查找 drawable，以 FilterQuality.None 渲染以保持像素清晰
+  theme/                       天蓝主色 #38BDF8；浅灰 / 墨蓝双主题；已覆盖 surfaceContainer* 以消除 M3 默认紫色
+```
+
+`app` 模块仅有模板自带的 `ExampleUnitTest` 与 `ExampleInstrumentedTest`，没有业务测试。
+
+### 7.3 「可选因子」遗留字段
+
+UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字段，以保持口令码协议与已存数据的兼容：
+
+- `Recipe.optionalFactorIds` / `Recipe.minOptional`
+- `RecipeDataStore.PersistedRecipe` 中的同名字段
+- `RecipeCodec` payload 中的 optional 段
+- `RuleEngine` 与 `ProbabilityCalculator` 仍支持 optional 语义
+
+编辑器新建或保存的配方中，这两个字段恒为空集与 0。
+
+### 7.4 应用图标与开屏
+
+- 图标为自适应图标：背景为纯色 `@color/ic_launcher_background`（`#FF38BDF8`），前景为 `drawable/ic_launcher_foreground_emoji.xml`，它把 `mipmap-*/ic_launcher_emoji.png`（表情包，临时图标）四边各内缩 24dp。
+- PNG 改名为 `ic_launcher_emoji` 是为了避免与 `mipmap-anydpi/ic_launcher.xml` 同名而形成循环引用。内缩使用 dp 而非百分比，因为 InsetDrawable 的百分比写法需要 API 28，而 minSdk 为 26。
+- 当前没有 `<monochrome>` 层，Android 13+ 主题图标不可用。
+- 开屏页尚未定制：Android 12+ 使用系统默认开屏，显示的是上述自适应图标前景。`themes.xml` 的父主题为 `android:Theme.Material.Light.NoActionBar`，未引入 `core-splashscreen`。
+- 原创矢量图标与自定义 Compose 开屏页的技术规格已交给负责视觉设计的协作方，将在单独话题中完成。约定的交付物：`ic_launcher_background.xml`、`ic_launcher_foreground.xml`（108dp 画布，主体落在中心 66dp 安全区内），以及 `ui/screen/SplashScreen.kt`（签名 `fun SplashScreen(onSplashFinished: () -> Unit)`，新增路由 `splash`，结束后 `popUpTo(splash) { inclusive = true }`）。
+
+---
 
 ## 8. 下一步
 
-1. 提交当前未提交的改动
-2. 写 `codec/RecipeCodec.kt` + 测试。已定方案：
-   - 格式 `SKF1-<Base32(payload)>-<CRC8>`，Base32 去掉易混字符，适合 B站评论复制
-   - payload：dataVersion(varint) | flags | wanted ids | unwanted ids | optional ids + minOptional
-   - 配方名不进口令码，导入时用户自己命名
-   - 不认识的 id → 提示"请更新 App"，不能崩溃；CRC 错误 → 提示粘贴有误
-   - 不引入新依赖，Base32 和 CRC8 手写
-3. 选项 A 收尾后进入：识别方案细化（分析截图定位槽位/刷新按钮）或阶段②（悬浮窗 + DataStore）
+建议按以下顺序推进，每一步完成后单独提交：
 
-## 9. 已定的架构（后续阶段用）
+1. 提交本文件的更新。
+2. 运行 `:core-domain:test`，确认 85 个测试全部通过。
+3. 接入原创矢量图标与自定义开屏页（单独话题进行），并补上 `<monochrome>` 层。
+4. 小型清理（可合并为一次提交）：
+   - 将 `RecipeCodeScreen.kt` 第 207 行弃用的 `LocalClipboardManager` 替换为 `LocalClipboard`。
+   - 删除无引用资源：`drawable/ic_launcher_foreground.xml`、`drawable/ic_launcher_background.xml`、`mipmap-*/ic_launcher_round.webp`、`LegendaryClassName.kt`。
+   - 决定 `assets/factors/icons/` 的去留（见第 9 节）。
+5. 更新 README：项目状态、功能完成情况；并删除「帧差检测，等待动画结束后再识别」一条，它与「刷新没有动画」的实机结论矛盾。
+6. 进入核心功能阶段（二选一先行，均需先与维护者确认方案）：
+   - 识别方案：用 `androidTest/assets/screenshots/` 中的截图定位槽位与刷新按钮，实现模板匹配，并以截图编写识别测试。
+   - 悬浮窗与无障碍服务：配方选择、频率设置、开始/暂停，以及第 10 节所述状态机。
 
-- 纯原生 Kotlin + Jetpack Compose；悬浮窗用 Compose 挂到 WindowManager
-- 截图：默认 `AccessibilityService.takeScreenshot()`（API 30+，约每秒 3 次上限，需真机验证）；更高频率走 MediaProjection
-- 识别：OpenCV 模板匹配（`org.opencv:opencv`，接入前确认 Maven 最新版本），校准用刷新按钮/骰子算缩放比例，不靠问号；低于阈值判 UNKNOWN
-- 点击：`dispatchGesture`；运行时悬浮窗缩小并避开刷新按钮和槽位
-- 状态机：IDLE → CALIBRATING → CAPTURE → RECOGNIZE → MATCH → TAP_REFRESH → COOLDOWN（无动画，所以不需要等画面稳定）；切出游戏或连续识别失败就暂停
-- 持久化：先用 DataStore 存配方 JSON 列表，暂不用 Room
-- 依赖分阶段加入，版本要先查证再锁定
+---
 
-## 10. 协作约定
+## 9. 已知问题与待决事项
 
-- 文件读写自己做；工程初始化、装依赖这类命令原则上整理给主人执行
-- 改完代码必须编译并跑测试；没跑过就不能说通过
-- 主人纠正的事实（如 R6 不阻塞）以本文件为准
+- **导入含可选因子的旧口令码**：`RecipeCodeViewModel.importCode` 会把 `optionalFactorIds` 与 `minOptional` 原样存入；而 `RecipeEditorViewModel.loadRecipe` 只读取想要与不想要，用户再次保存时可选部分会被静默丢弃。由于 UI 已不再生成可选因子，目前只影响旧口令码。处理方式待维护者决定：导入时直接丢弃，或保留现状。
+- **图标资源重复**：`assets/factors/icons/` 与 `res/drawable/` 各有 59 个相同图标，前者无代码引用，会增加 APK 体积。若后续 OpenCV 模板匹配计划从 assets 读取原图，可保留；否则建议删除。
+- **新建配方不能直接分享**：新建配方保存前没有 id，编辑页的分享按钮为禁用状态，需要保存后从列表进入分享。
+- **保存成功提示不可见**：编辑页保存成功后立即返回列表，Snackbar「保存成功」基本无法被看到。
+- **源码目录不统一**：`MainActivity.kt` 位于 `src/main/java/`，其余源码位于 `src/main/kotlin/`。不影响构建，可择机统一。
+- **两份 factors.json**：运行时与测试各一份，修改因子数据时必须同步两处。
+
+---
+
+## 10. 已定的架构（后续阶段使用）
+
+- 纯原生 Kotlin + Jetpack Compose；悬浮窗用 Compose 挂到 WindowManager。
+- 截图：默认使用 `AccessibilityService.takeScreenshot()`（API 30+，约每秒 3 次上限，需真机验证）；需要更高频率时改用 MediaProjection。
+- 识别：OpenCV 模板匹配（`org.opencv:opencv`，接入前须确认 Maven 最新版本）；用刷新按钮或骰子图标校准并计算缩放比例，不依赖问号；匹配度低于阈值判为 UNKNOWN。
+- 点击：`dispatchGesture`；运行时悬浮窗缩小，并避开刷新按钮与槽位。
+- 状态机：IDLE → CALIBRATING → CAPTURE → RECOGNIZE → MATCH → TAP_REFRESH → COOLDOWN。刷新无动画，因此不需要等待画面稳定。切出游戏或连续识别失败时暂停。
+- 持久化：继续使用 DataStore 存储配方 JSON 列表，暂不引入 Room。
+- 依赖按阶段加入，版本须先查证再锁定。
+
+---
+
+## 11. 协作约定
+
+- AI 助手自行完成文件读写；工程初始化、安装依赖、构建、安装、git 写操作等命令整理成步骤交给维护者执行。
+- 环境注意事项：终端为 PowerShell 5.1；`readFile` 工具无法读取 `.kts` 文件，需改用 `type` 或 `Get-Content`。
+- 改动代码后必须构建，涉及领域逻辑的改动还须运行测试；未运行过的检查不得表述为「已通过」。
+- 采用小步迭代：每次只做一个模块或功能点，完成后由维护者真机验证并提交。
+- 维护者纠正过的事实（如 R6 不阻塞、可选语义已移除）以本文为准。
