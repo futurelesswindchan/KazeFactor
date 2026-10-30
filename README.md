@@ -1,4 +1,8 @@
-# Soul Knight Factor Farmer - 元气骑士因子刷新助手
+<div align="left">
+  <img src="assets/logo/KAZE FACTOR.svg" width="640" />
+  <br>
+  <h1>元气骑士挑战因子刷新助手 <img src="assets/logo/Pinia.png" width="32" /></h1>
+<div>
 
 > 🚧 **项目状态**: 架构设计与基础设施搭建中
 
@@ -83,6 +87,7 @@ KazeFactor/
 详见 [ICON_LICENSE.txt](./ICON_LICENSE.txt)。
 
 **使用限制**：
+
 - 图标文件仅用于本项目的因子识别功能
 - 不得用于商业用途
 - 分发时必须保留版权声明

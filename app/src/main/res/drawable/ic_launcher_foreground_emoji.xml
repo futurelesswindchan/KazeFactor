@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    自适应图标前景层：把表情包 PNG 内缩到安全区内。
+    前景画布 108dp，四边各内缩 24dp 后图片为 60dp，落在 66dp 安全区圆内，
+    避免被圆形 / 水滴等桌面遮罩切掉边角。
+    NOTE: 用 dp 而不是百分比，因为 InsetDrawable 的百分比写法要 API 28+，项目 minSdk 是 26。
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/ic_launcher_emoji"
+    android:inset="24dp" />

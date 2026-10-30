@@ -1,0 +1,98 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1000"
+  height="212"
+  viewBox="0 0 850 180"
+  fill="none"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">KazeFactor</title>
+  <desc id="desc">
+    KAZE FACTOR 几何折纸风字标，黑色字形配以天蓝色折面。
+    单词内部紧凑排列，两个单词之间留有明显空格。
+  </desc>
+
+  <g transform="translate(46 44)">
+    <!-- 风的轨迹 -->
+    <path d="M-28 23 42 8 28 20Z" fill="#38BDF8" />
+    <path d="M-20 36 6 30 6 34Z" fill="#171B22" />
+
+    <!-- KAZE：紧凑排列 -->
+
+    <!-- K -->
+    <g fill="#171B22">
+      <path d="M0 10 16 0V88H0Z" />
+      <path d="M17 39 45 0H65L33 44 67 88H46L17 50Z" />
+    </g>
+    <path d="M33 44 67 88H46L24 57Z" fill="#38BDF8" />
+
+    <!-- A -->
+    <g transform="translate(74)" fill="#171B22">
+      <path
+        fill-rule="evenodd"
+        d="M0 88 23 0H43L66 88H49L44 68H22L17 88ZM26 52H40L33 22Z"
+      />
+    </g>
+
+    <!-- Z -->
+    <g transform="translate(148)">
+      <path d="M0 0H66V13L22 72H66V88H0V74L44 16H0Z" fill="#171B22" />
+      <path d="M0 0H66L54 16H0Z" fill="#38BDF8" />
+      <path d="M54 16 66 0V13L47 38Z" fill="#0284C7" />
+    </g>
+
+    <!-- E -->
+    <g transform="translate(222)" fill="#171B22">
+      <path d="M0 0H64L52 16H17V35H53L42 51H17V72H64L52 88H0Z" />
+    </g>
+
+    <!-- FACTOR：与 KAZE 留出明显空格 -->
+
+    <!-- F -->
+    <g transform="translate(332)">
+      <path d="M0 0H64L52 16H17V35H52L41 51H17V88H0Z" fill="#171B22" />
+      <path d="M17 35H52L41 51H17Z" fill="#38BDF8" />
+    </g>
+
+    <!-- A -->
+    <g transform="translate(404)" fill="#171B22">
+      <path
+        fill-rule="evenodd"
+        d="M0 88 23 0H43L66 88H49L44 68H22L17 88ZM26 52H40L33 22Z"
+      />
+    </g>
+
+    <!-- C -->
+    <g transform="translate(478)" fill="#171B22">
+      <path d="M17 0H65L53 16H24L17 23V65L24 72H65L53 88H17L0 71V17Z" />
+    </g>
+
+    <!-- T -->
+    <g transform="translate(550)" fill="#171B22">
+      <path d="M0 0H68L56 16H42V88H25V16H0Z" />
+    </g>
+
+    <!-- O -->
+    <g transform="translate(624)">
+      <path
+        fill-rule="evenodd"
+        d="M17 0H49L66 17V71L49 88H17L0 71V17ZM24 16 17 23V65L24 72H42L49 65V23L42 16Z"
+        fill="#171B22"
+      />
+      <path d="M49 0 66 17V48L49 31Z" fill="#38BDF8" />
+      <path d="M49 0V23L42 16Z" fill="#0284C7" />
+    </g>
+
+    <!-- R -->
+    <g transform="translate(698)" fill="#171B22">
+      <path
+        fill-rule="evenodd"
+        d="M0 0H45L63 18V39L47 55 69 88H49L29 57H17V88H0ZM17 16V41H38L46 33V24L38 16Z"
+      />
+    </g>
+
+    <!-- 收尾的风切线 -->
+    <path d="M698 102H774L753 107H686Z" fill="#38BDF8" />
+  </g>
+</svg>
