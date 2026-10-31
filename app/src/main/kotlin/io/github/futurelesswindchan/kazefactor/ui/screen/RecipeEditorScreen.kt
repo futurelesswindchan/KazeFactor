@@ -1,11 +1,15 @@
 package io.github.futurelesswindchan.kazefactor.ui.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -20,6 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.domain.model.Factor
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeEditorViewModel
@@ -36,7 +44,7 @@ import kotlinx.coroutines.launch
 /**
  * 配方编辑界面（支持列表与紧凑图标网格双模式切换 + 置顶已选/排除预览栏）
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RecipeEditorScreen(
     viewModel: RecipeEditorViewModel,
@@ -54,6 +62,18 @@ fun RecipeEditorScreen(
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+
+    // 防止连点保存：两次保存会写入两条新配方，并触发两次返回
+    var isSaving by remember { mutableStateOf(false) }
+
+    // Compose 不会因为键盘收起而清除焦点，这里在键盘由显示变为隐藏时手动清除，
+    // 否则输入框会一直保留光标
+    val isImeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(isImeVisible) {
+        if (!isImeVisible) focusManager.clearFocus()
+    }
 
     val factorsByCategory = remember { viewModel.getFactorsByCategory() }
     val allFactorsMap = remember(factorsByCategory) {
@@ -93,16 +113,21 @@ fun RecipeEditorScreen(
                     }
                     IconButton(
                         onClick = {
+                            focusManager.clearFocus()
+                            isSaving = true
                             scope.launch {
                                 viewModel.saveRecipe().onSuccess {
-                                    snackbarHostState.showSnackbar("保存成功")
+                                    // 用 Toast 而非 Snackbar：Snackbar 属于本页面，返回后即被销毁；
+                                    // 且 showSnackbar 会挂起到提示消失（约 4 秒）才继续执行返回
+                                    Toast.makeText(context, "保存成功", Toast.LENGTH_SHORT).show()
                                     onNavigateBack()
                                 }.onFailure {
+                                    isSaving = false
                                     snackbarHostState.showSnackbar("保存失败：${it.message}")
                                 }
                             }
                         },
-                        enabled = !hasBlockingErrors && recipeName.isNotBlank()
+                        enabled = !isSaving && !hasBlockingErrors && recipeName.isNotBlank()
                     ) {
                         Icon(Icons.Default.Check, contentDescription = "保存")
                     }
@@ -115,6 +140,10 @@ fun RecipeEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                // 点击输入框以外的空白区域时收起键盘并清除焦点
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -126,6 +155,8 @@ fun RecipeEditorScreen(
                 placeholder = { Text("例如：超简单因子、刷钱因子") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 shape = RoundedCornerShape(16.dp)
             )
 
@@ -135,6 +166,7 @@ fun RecipeEditorScreen(
                 hasWarnings = warningViolations.isNotEmpty(),
                 pinnedFactors = pinnedSelectedFactors,
                 onPinnedFactorClick = { factorId ->
+                    focusManager.clearFocus()
                     viewModel.toggleFactorSelection(factorId)
                 }
             )
@@ -182,6 +214,8 @@ fun RecipeEditorScreen(
                 factorsByCategory = factorsByCategory,
                 selectionStates = factorSelections,
                 onFactorClick = { factorId, _ ->
+                    // 因子图标自身会消费点击事件，空白区域的点击监听收不到，需单独清除焦点
+                    focusManager.clearFocus()
                     viewModel.toggleFactorSelection(factorId)
                 },
                 displayMode = displayMode,

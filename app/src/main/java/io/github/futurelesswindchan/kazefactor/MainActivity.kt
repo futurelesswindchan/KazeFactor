@@ -10,7 +10,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -111,7 +114,7 @@ fun KazeFactorApp(
             RecipeEditorScreen(
                 viewModel = viewModel,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.popBackStackFrom(backStackEntry)
                 },
                 onNavigateToRecipeCode = { savedRecipeId ->
                     navController.navigate(NavigationRoutes.buildRecipeCodeRoute(savedRecipeId))
@@ -137,9 +140,23 @@ fun KazeFactorApp(
                 viewModel = viewModel,
                 recipeId = recipeId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.popBackStackFrom(backStackEntry)
                 }
             )
         }
+    }
+}
+
+/**
+ * 仅当 [entry] 仍是当前活跃页面时才返回上一页。
+ *
+ * 同一页面可能触发两次返回（例如保存后的自动返回与用户点击返回键重叠，
+ * 或导入成功后的延时返回与手动返回重叠）。第二次 popBackStack 会把起始页
+ * 配方列表也弹出，NavHost 变为空白，表现为白屏卡死。页面开始退出后其
+ * lifecycle 不再是 RESUMED，借此过滤掉重复的返回请求。
+ */
+private fun NavHostController.popBackStackFrom(entry: NavBackStackEntry) {
+    if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+        popBackStack()
     }
 }
