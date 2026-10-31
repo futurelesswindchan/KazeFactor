@@ -40,6 +40,7 @@ android {
 dependencies {
     // 核心领域逻辑（阶段①）
     implementation(project(":core-domain"))
+    implementation(project(":core-engine"))
     
     // Compose 基础
     implementation(platform(libs.androidx.compose.bom))

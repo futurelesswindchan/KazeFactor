@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "KazeFactor"
 include(":app")
 include(":core-domain")
+include(":core-engine")

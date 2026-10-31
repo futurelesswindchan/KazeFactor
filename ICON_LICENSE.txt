@@ -1,11 +1,15 @@
 # 元气骑士因子图标版权声明
 # Soul Knight Factor Icons Copyright Notice
 
-# 位置：app/src/main/assets/factors/icons/*.png
-# Location: app/src/main/assets/factors/icons/*.png
+# 位置 / Location:
+# - app/src/main/res/drawable/ 下的 59 个因子图标 png（与下一项为同一批图标）
+#   The 59 factor icon PNGs in app/src/main/res/drawable/ (same icons as below)
+# - app/src/main/assets/factors/icons/*.png（因子图标，用作识别模板 / factor icons, used as recognition templates）
+# - app/src/main/assets/recognition/（从游戏截图裁出的识别锚点与问号模板 / anchors and question-mark templates cropped from game screenshots）
+# - core-engine/src/test/resources/screenshots/*.jpg（游戏实机截图，仅供识别测试 / in-game screenshots, for recognition tests only）
 
-# 这些图标文件的版权归凉屋游戏（ChillyRoom）所有，不适用于本项目的 GPL-3.0 开源协议。
-# These icon files are copyright © ChillyRoom, and are NOT covered by the project's GPL-3.0 license.
+# 以上文件（图标与游戏画面）的版权归凉屋游戏（ChillyRoom）所有，不适用于本项目的 GPL-3.0 开源协议。
+# The files above (icons and game imagery) are copyright © ChillyRoom, and are NOT covered by the project's GPL-3.0 license.
 
 # 使用限制：
 # Usage restrictions:
@@ -15,8 +19,5 @@
 #    No commercial use
 # 3. 分发时必须保留此版权声明
 #    This copyright notice must be retained when distributing
-
-# 感谢凉屋游戏和元气骑士Wiki工作组的授权支持
-# Thanks to ChillyRoom and Soul Knight Wiki team for authorization
 
 app/src/main/assets/factors/icons/*.png linguist-generated=true

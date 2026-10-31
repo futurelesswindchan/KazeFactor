@@ -89,8 +89,8 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 | 因子数据（运行时） | `app/src/main/assets/factors.json` | 由 `AssetFactorLoader` 加载 |
 | 因子数据（测试用） | `core-domain/src/test/resources/factors.json` | 领域层测试读取；与上一份为两份独立副本，修改时须同步 |
 | 因子图标（运行时） | `app/src/main/res/drawable/*.png`（59 个） | 由 `FactorIconMapper` 按 `key` 动态查找 |
-| 因子图标（副本） | `app/src/main/assets/factors/icons/*.png`（59 个） | 当前代码未引用；维护者决定暂时保留，待识别方案实机确定后再定去留，见第 9 节 |
-| 实机截图 | `app/src/androidTest/assets/screenshots/`（47 张） | `disable01~07` 为问号状态，`enable01~40` 为已刷新状态；当前尚无测试代码引用 |
+| 因子图标（识别模板） | `app/src/main/assets/factors/icons/*.png`（59 个） | 与 `res/drawable` 内容相同（MD5 一致）。按架构方案保留，作为识别模板的唯一来源；`res/drawable` 解码时会按屏幕密度缩放，不能用作模板 |
+| 实机截图 | `core-engine/src/test/resources/screenshots/`（47 张，从 `app/src/androidTest/assets/` 迁入） | `disable01~07` 为问号状态，`enable01~40` 为已刷新状态。答案文件 `labels.csv`（值为因子 key，问号写 `?`）已由维护者核对，全部正确（2026-10-31） |
 | README Logo | `assets/logo/`（`KAZE FACTOR.svg`、`K.svg`、`Pinia.png/.webp`） | 仅供 README 使用，不打包进 APK |
 | 应用图标 | `res/mipmap-anydpi/ic_launcher*.xml` + `res/drawable/ic_launcher_foreground_emoji.xml` + `res/mipmap-*/ic_launcher_emoji.png` | 见第 7.4 节 |
 
@@ -187,10 +187,10 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 
 - 图标为自适应图标：背景为纯色 `@color/ic_launcher_background`（`#FF38BDF8`），前景为 `drawable/ic_launcher_foreground_emoji.xml`，它把 `mipmap-*/ic_launcher_emoji.png`（表情包，临时图标）四边各内缩 24dp。
 - PNG 改名为 `ic_launcher_emoji` 是为了避免与 `mipmap-anydpi/ic_launcher.xml` 同名而形成循环引用。内缩使用 dp 而非百分比，因为 InsetDrawable 的百分比写法需要 API 28，而 minSdk 为 26。
-- 模板自带的 `drawable/ic_launcher_foreground.xml`、`drawable/ic_launcher_background.xml` 与各密度 `ic_launcher_round.webp` 已于 `c051f36` 删除。Manifest 的 `roundIcon` 仍指向 `@mipmap/ic_launcher_round`，由 `mipmap-anydpi/ic_launcher_round.xml` 提供（minSdk 26 总是优先使用 anydpi）。视觉协作方交付的同名新文件可直接放入，不会冲突。
+- 模板自带的 `drawable/ic_launcher_foreground.xml`、`drawable/ic_launcher_background.xml` 与各密度 `ic_launcher_round.webp` 已于 `c051f36` 删除。Manifest 的 `roundIcon` 仍指向 `@mipmap/ic_launcher_round`，由 `mipmap-anydpi/ic_launcher_round.xml` 提供（minSdk 26 总是优先使用 anydpi）。
 - 当前没有 `<monochrome>` 层，Android 13+ 主题图标不可用。
 - 开屏页尚未定制：Android 12+ 使用系统默认开屏，显示的是上述自适应图标前景。`themes.xml` 的父主题为 `android:Theme.Material.Light.NoActionBar`，未引入 `core-splashscreen`。
-- 原创矢量图标与自定义 Compose 开屏页的技术规格已交给负责视觉设计的协作方，将在单独话题中完成。约定的交付物：`ic_launcher_background.xml`、`ic_launcher_foreground.xml`（108dp 画布，主体落在中心 66dp 安全区内），以及 `ui/screen/SplashScreen.kt`（签名 `fun SplashScreen(onSplashFinished: () -> Unit)`，新增路由 `splash`，结束后 `popUpTo(splash) { inclusive = true }`）。
+- 维护者确认（2026-10-31）：本工具以实用为主，当前的简易图标与系统默认开屏即为最终方案，不再另做原创矢量图标与自定义 Compose 开屏页。
 
 ---
 
@@ -200,33 +200,34 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 
 建议按以下顺序推进，每一步完成后单独提交：
 
-1. 接入原创矢量图标与自定义开屏页（单独话题进行），并补上 `<monochrome>` 层。
-2. 更新 README：项目状态、功能完成情况；并删除「帧差检测，等待动画结束后再识别」一条，它与「刷新没有动画」的实机结论矛盾。
-3. 进入核心功能阶段（二选一先行，均需先与维护者确认方案）：
-   - 识别方案：用 `androidTest/assets/screenshots/` 中的截图定位槽位与刷新按钮，实现模板匹配，并以截图编写识别测试。
-   - 悬浮窗与无障碍服务：配方选择、频率设置、开始/暂停，以及第 10 节所述状态机。
+1. 核心功能阶段：架构方案已交付（`docs/ARCHITECTURE_CORE_FEATURE.md`，依据见 `docs/ARCHITECTURE_RESEARCH_REPORT.md`），按其第 9 节的步骤实现。第 10 节事项已确认（2026-10-31）：
+   - 第 1.5 节的默认值全部采用（N = 3、次数上限 = 期望 × 3 且至少 100、默认 3 次/秒、命中只震动）。
+   - Android 8~10 设备暂不支持自动刷新，发布时在说明中注明。
+   - 截图与识别素材同因子图标一样获准使用，不适用 GPL-3.0，已在 `ICON_LICENSE.txt` 注明。
+   - 尚缺：非因子界面截图 5~10 张（第 3 步用），以及英文界面截图（如游戏支持切换语言）。
+2. 小型 UI 优化：主页面顶栏标题「KazeFactor - 配方管理」改用专有 Logo 资产。`assets/logo/` 下为 SVG，需转换为 VectorDrawable 放入 `res/drawable/` 后使用。
+3. 开源发布前收尾：更新 README（项目状态、功能完成情况；删除与「刷新没有动画」矛盾的「帧差检测」一条），然后推送到 GitHub。
 
 ---
 
 ## 9. 已知问题与待决事项
 
 - **导入含可选因子的旧口令码**：`RecipeCodeViewModel.importCode` 会把 `optionalFactorIds` 与 `minOptional` 原样存入；而 `RecipeEditorViewModel.loadRecipe` 只读取想要与不想要，用户再次保存时可选部分会被静默丢弃。由于 UI 已不再生成可选因子，目前只影响旧口令码。处理方式待维护者决定：导入时直接丢弃，或保留现状。
-- **图标资源重复**：`app/src/main/assets/factors/icons/` 与 `res/drawable/` 各有 59 个相同图标，前者无代码引用。维护者决定暂时保留（体积影响小），待识别方案实机确定后再决定：若模板直接从实机截图裁取则删除；若使用原图，注意 `res/drawable` 解码时会按屏幕密度缩放，从 assets 读取可拿到原始像素。
 - **新建配方不能直接分享**：新建配方保存前没有 id，编辑页的分享按钮为禁用状态，需要保存后从列表进入分享。
 - **源码目录不统一**：`MainActivity.kt` 位于 `src/main/java/`，其余源码位于 `src/main/kotlin/`。不影响构建，可择机统一。
 - **两份 factors.json**：运行时与测试各一份，修改因子数据时必须同步两处。
 
 ---
 
-## 10. 已定的架构（后续阶段使用）
+## 10. 核心功能架构
 
-- 纯原生 Kotlin + Jetpack Compose；悬浮窗用 Compose 挂到 WindowManager。
-- 截图：默认使用 `AccessibilityService.takeScreenshot()`（API 30+，约每秒 3 次上限，需真机验证）；需要更高频率时改用 MediaProjection。
-- 识别：OpenCV 模板匹配（`org.opencv:opencv`，接入前须确认 Maven 最新版本）；用刷新按钮或骰子图标校准并计算缩放比例，不依赖问号；匹配度低于阈值判为 UNKNOWN。
-- 点击：`dispatchGesture`；运行时悬浮窗缩小，并避开刷新按钮与槽位。
-- 状态机：IDLE → CALIBRATING → CAPTURE → RECOGNIZE → MATCH → TAP_REFRESH → COOLDOWN。刷新无动画，因此不需要等待画面稳定。切出游戏或连续识别失败时暂停。
-- 持久化：继续使用 DataStore 存储配方 JSON 列表，暂不引入 Room。
-- 依赖按阶段加入，版本须先查证再锁定。
+以 `docs/ARCHITECTURE_CORE_FEATURE.md` 为准（2026-10-31 交付，取代本节旧内容）。主要结论：
+
+- 新建纯 Kotlin JVM 模块 `core-engine`，放识别算法和刷新状态机；依赖方向 app → core-engine → core-domain。
+- 识别：纯 Kotlin 掩膜像素差模板匹配，不引入 OpenCV；模板由 `assets/factors/icons/` 原图缩放生成；用骰子图标校准。
+- 截图：先做无障碍截图（`takeScreenshot`，API 30+）；录屏高速模式等真机数据出来再决定做不做。
+- 点击与悬浮窗：均由无障碍服务提供（`dispatchGesture`、`TYPE_ACCESSIBILITY_OVERLAY`），不需要悬浮窗权限。
+- 持久化：继续使用 DataStore。依赖按阶段加入，版本须先查证再锁定。
 
 ---
 
