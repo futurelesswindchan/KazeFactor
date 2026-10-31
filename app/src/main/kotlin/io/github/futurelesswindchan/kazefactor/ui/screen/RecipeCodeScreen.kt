@@ -1,5 +1,6 @@
 package io.github.futurelesswindchan.kazefactor.ui.screen
 
+import android.content.ClipData
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,8 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -204,7 +205,7 @@ private fun ExportCodeContent(
     code: String,
     recipeName: String
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var showCopiedHint by remember { mutableStateOf(false) }
     
@@ -274,8 +275,11 @@ private fun ExportCodeContent(
             // 复制按钮
             Button(
                 onClick = {
-                    clipboardManager.setText(AnnotatedString(code))
+                    // LocalClipboard 的写入是 suspend 函数，需在协程中调用
                     scope.launch {
+                        clipboard.setClipEntry(
+                            ClipEntry(ClipData.newPlainText("KazeFactor 口令码", code))
+                        )
                         showCopiedHint = true
                         delay(2000)
                         showCopiedHint = false
