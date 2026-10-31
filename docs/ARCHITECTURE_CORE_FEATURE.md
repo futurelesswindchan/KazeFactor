@@ -4,6 +4,11 @@
 > 回应：`docs/HANDOFF_CORE_FEATURE.md`（基线 `c9de958`）
 > 本文与 `PROJECT_STATUS.md` 第 10 节冲突时以本文为准（不用 OpenCV、不再单独做悬浮窗服务等）。
 > 标「待确认」的条目需要维护者拍板，汇总在第 10 节。
+>
+> **实施进度（主力开发维护，2026-10-31）**
+> - 第 9 节第 1 步已完成（`e287a7e`）。截图和答案已迁到 `core-engine/src/test/resources/screenshots/`，答案文件为 `labels.csv`，维护者已核对，全部正确。`labels_draft_zh.csv` 已删除。正文中出现的 `app/src/androidTest/assets/screenshots/`、`labels_draft.csv` 都是迁移前的旧路径。
+> - 第 10 节第 1、3、4、5 条已确认：答案无误；默认值全部采用；截图和识别素材与因子图标一样获准使用，不适用 GPL-3.0，已写入 `ICON_LICENSE.txt`；Android 8~10 发布时注明不支持。第 2 条（补拍非因子界面截图）还没有做，第 3 步之前需要补上。
+> - 工具链已升级到 Gradle 9.8.2 和 AGP 9.5.0（`0138436`、`7e193d5`）。第 6 节的 `core-engine/build.gradle.kts` 按原样使用，不受升级影响。
 
 ---
 

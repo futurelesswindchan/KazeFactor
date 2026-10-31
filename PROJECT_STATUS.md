@@ -1,8 +1,10 @@
 # KazeFactor 项目交接备忘录
 
 > 最后更新：2026-10-31
-> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行；游戏内识别与自动刷新部分尚未开始。
-> 最新代码提交：`a1e1a6e`
+> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）架构已定，已完成架构方案第 9 节第 1 步（新建 `core-engine` 模块、迁移截图），下一步是第 2 步。
+> 最新代码提交：`7e193d5`
+
+**新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
 本文件面向接手开发的任何人员。下文中「维护者」指项目所有者，「本文」所述状态均已对照仓库实际代码核实；未经本轮运行验证的结论会单独注明。
 
@@ -36,7 +38,8 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 - 刷新频率上限 1~10 次/秒，由用户设置（尚未实现）。
 - 实机特征：刷新没有动画，按钮没有形变，点击后可直接截图识别。
 - 测试机分辨率 2388×1080，目前仅有这一台。
-- 应用桌面图标与开屏页必须使用原创图形，不得使用游戏因子图标；开屏页底部须注明因子图标版权归凉屋游戏所有。
+- 应用桌面图标与开屏页不得使用游戏因子图标。当前的简易图标与系统默认开屏即为最终方案（见第 7.4 节）。
+- 原定「开屏页底部注明因子图标版权归凉屋游戏所有」：系统默认开屏无法显示文字，这条要求需要维护者确认改放在哪里（例如应用内「关于」信息或 README），见第 9 节。
 
 ---
 
@@ -45,28 +48,39 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 - 路径：`D:\AndroidStudioProjects\KazeFactor`；包名：`io.github.futurelesswindchan.kazefactor`
 - 模块：
   - `core-domain`：纯 Kotlin JVM 模块（java-library + kotlin.jvm + kotlin.serialization），无 Android 依赖。
-  - `app`：Android 应用模块，依赖 `core-domain`。
+  - `core-engine`：纯 Kotlin JVM 模块，放识别算法与刷新状态机（架构方案第 2.1 节）。`api(project(":core-domain"))`，依赖 kotlinx-coroutines 1.9.0（与 app 传递依赖解析版本一致）。目前只有构建配置与测试资源，还没有源码。
+  - `app`：Android 应用模块，依赖 `core-domain` 与 `core-engine`。
 - 工具链：Gradle 9.8.2、AGP 9.5.0（**内置 Kotlin 支持，`app` 不要再添加 kotlin-android 插件**）、Kotlin 2.2.10、Compose BOM 2026.02.01、compileSdk / targetSdk 37、minSdk 26、Java 11 字节码。
 - 主要依赖（版本见 `gradle/libs.versions.toml`）：navigation-compose 2.10.2、lifecycle-viewmodel-compose 2.11.0、datastore-preferences 1.2.0、kotlinx-serialization-json 1.8.0、material-icons-extended。
 - 已删除 `gradle/gradle-daemon-jvm.properties`（它要求下载 JDK 25，网络失败），并在 `gradle.properties` 中设置 `org.gradle.java.installations.auto-download=false`。`.gitignore` 也已忽略该文件。
 - 常用命令（PowerShell 5.1，不支持 `&&`，请用 `;`）：
   - 领域层单元测试：`.\gradlew.bat :core-domain:test --console=plain`，结果见 `core-domain\build\test-results\test\*.xml`
+  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`（2026-10-31 运行为 `NO-SOURCE`，尚无测试代码）
+- Gradle Wrapper 已于 `7e193d5` 用 9.8.2 重新生成，恢复了分发包 SHA-256 校验（`distributionSha256Sum`）。升级 Gradle 时请用 `gradlew wrapper --gradle-distribution-sha256-sum` 一并更新校验和。
+- 构建会提示「Deprecated Gradle features ... incompatible with Gradle 10」，目前不影响使用，升级 Gradle 10 前用 `--warning-mode all` 排查。
   - 构建：`.\gradlew assembleDebug`；安装到设备：`.\gradlew installDebug`
 
 ---
 
 ## 4. Git 状态与提交约定
 
-- 最新代码提交为 `a1e1a6e`；本文件每次更新单独以 `docs(status)` 提交。
+- 最新代码提交为 `7e193d5`；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
-  - `git add/commit`、构建、安装等有副作用的命令由维护者亲自执行。
+  - 构建、安装等有副作用的命令由维护者亲自执行。`git add/commit` 默认也由维护者执行；维护者明确授权某次提交时，AI 助手可代为执行，授权只对当次有效。
 
 近期提交（新 → 旧）：
 
 | 提交 | 内容 |
 | --- | --- |
+| 7e193d5 | 以 9.8.2 重新生成 Gradle Wrapper，恢复分发包校验和 |
+| 1fc315e | IDE 配置登记 core-engine 模块，新增项目拼写词典 |
+| 0138436 | 升级 Gradle 9.8.2 与 AGP 9.5.0 |
+| 09cd2cf | Manifest 移除未使用的 tools 命名空间与重复的 Activity label |
+| e287a7e | 新建 core-engine 模块并迁移实机截图；新增答案 `labels.csv`；ICON_LICENSE 扩展适用范围 |
+| eb4f44f | 新增核心功能需求交接、架构方案与调研报告 |
+| c9de958 | 同步测试结果、清理与白屏修复进度（本文件） |
 | a1e1a6e | 修复输入框焦点无法清除、保存后重复返回导致白屏 |
 | c051f36 | 剪贴板迁移至 `LocalClipboard`；删除无引用的模板图标资源与空类 |
 | 4ccf01a | 对照仓库现状重写本备忘录 |
@@ -196,23 +210,31 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 
 ## 8. 下一步
 
-已完成（2026-10-31）：领域层测试 85 个全部通过；小型清理（`c051f36`）；编辑页焦点与重复返回白屏修复（`a1e1a6e`），均已真机验证。
+已完成（2026-10-31）：
+- 领域层测试 85 个全部通过；小型清理（`c051f36`）；编辑页焦点与重复返回白屏修复（`a1e1a6e`），均已真机验证。
+- 架构方案第 9 节第 1 步（`e287a7e`）：`core-engine` 模块建好，`:core-engine:test` 与 `assembleDebug` 均构建通过；截图与 `labels.csv` 已迁入 `core-engine/src/test/resources/screenshots/`。
 
 建议按以下顺序推进，每一步完成后单独提交：
 
-1. 核心功能阶段：架构方案已交付（`docs/ARCHITECTURE_CORE_FEATURE.md`，依据见 `docs/ARCHITECTURE_RESEARCH_REPORT.md`），按其第 9 节的步骤实现。第 10 节事项已确认（2026-10-31）：
+1. 核心功能阶段：按 `docs/ARCHITECTURE_CORE_FEATURE.md` 第 9 节实现，**下一步是第 2 步**：`ArgbImage`、`ImageOps`、`ReferenceLayout`、`TemplateBank`、`SlotMatcher`、`FactorRecognizer`（先用固定参考坐标，不做校准），以及答案测试、阈值报告、模板可分性 3 类测试。动手前注意：
+   - 阈值不要照抄调研报告的数字（那些来自 bicubic 缩放），先跑出阈值报告再定，并回写架构方案第 3.2 节。
+   - 测试通过系统属性 `kaze.iconDir`、`kaze.factorsJson` 读取 app 中的图标与 `factors.json`（已在 `core-engine/build.gradle.kts` 配好）；截图与 `labels.csv` 走测试 classpath。
+   - `FactorDatabase` 已有 `getFactorByKey()`，`labels.csv` 的 key 转 id 可直接用。
+
+   架构方案第 10 节事项已确认（2026-10-31）：
    - 第 1.5 节的默认值全部采用（N = 3、次数上限 = 期望 × 3 且至少 100、默认 3 次/秒、命中只震动）。
    - Android 8~10 设备暂不支持自动刷新，发布时在说明中注明。
    - 截图与识别素材同因子图标一样获准使用，不适用 GPL-3.0，已在 `ICON_LICENSE.txt` 注明。
    - 尚缺：非因子界面截图 5~10 张（第 3 步用），以及英文界面截图（如游戏支持切换语言）。
 2. 小型 UI 优化：主页面顶栏标题「KazeFactor - 配方管理」改用专有 Logo 资产。`assets/logo/` 下为 SVG，需转换为 VectorDrawable 放入 `res/drawable/` 后使用。
-3. 开源发布前收尾：更新 README（项目状态、功能完成情况；删除与「刷新没有动画」矛盾的「帧差检测」一条），然后推送到 GitHub。
+3. 开源发布前收尾：更新 README（项目状态、功能完成情况；第 27 行工具链版本仍为 Gradle 9.6.0 + AGP 9.4.1，需改为 9.8.2 + 9.5.0；删除与「刷新没有动画」矛盾的「帧差检测」和「OpenCV 模板匹配」两条，改为「纯 Kotlin 模板匹配」；注明 Android 8~10 不支持自动刷新；注明图标与截图不适用 GPL-3.0），然后推送到 GitHub。
 
 ---
 
 ## 9. 已知问题与待决事项
 
 - **导入含可选因子的旧口令码**：`RecipeCodeViewModel.importCode` 会把 `optionalFactorIds` 与 `minOptional` 原样存入；而 `RecipeEditorViewModel.loadRecipe` 只读取想要与不想要，用户再次保存时可选部分会被静默丢弃。由于 UI 已不再生成可选因子，目前只影响旧口令码。处理方式待维护者决定：导入时直接丢弃，或保留现状。
+- **版权声明的展示位置**：原定写在开屏页底部，但现在用的是系统默认开屏，无法显示文字。需要维护者决定改放在哪里。
 - **新建配方不能直接分享**：新建配方保存前没有 id，编辑页的分享按钮为禁用状态，需要保存后从列表进入分享。
 - **源码目录不统一**：`MainActivity.kt` 位于 `src/main/java/`，其余源码位于 `src/main/kotlin/`。不影响构建，可择机统一。
 - **两份 factors.json**：运行时与测试各一份，修改因子数据时必须同步两处。
@@ -234,7 +256,10 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 ## 11. 协作约定
 
 - AI 助手自行完成文件读写；工程初始化、安装依赖、构建、安装、git 写操作等命令整理成步骤交给维护者执行。
-- 环境注意事项：终端为 PowerShell 5.1；`readFile` 工具无法读取 `.kts` 文件，需改用 `type` 或 `Get-Content`。
+- 环境注意事项：
+  - 终端为 PowerShell 5.1。
+  - `readFile` 工具无法读取 `.kts` 文件，需改用 `type`。`type` 输出中文注释会乱码，但 `editFile` 可以正常编辑 `.kts`。
+  - 2026-10-31 时 AI 助手无法通过 `readFile` 查看图片（LobeHub 文件存储已满），需要看截图时请维护者描述或先清理存储空间。
 - 改动代码后必须构建，涉及领域逻辑的改动还须运行测试；未运行过的检查不得表述为「已通过」。
 - 采用小步迭代：每次只做一个模块或功能点，完成后由维护者真机验证并提交。
 - 维护者纠正过的事实（如 R6 不阻塞、可选语义已移除）以本文为准。

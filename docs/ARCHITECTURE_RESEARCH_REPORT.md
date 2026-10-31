@@ -6,7 +6,9 @@
 > - `docs/HANDOFF_CORE_FEATURE.md`：需求交接（输入）
 > - `docs/ARCHITECTURE_CORE_FEATURE.md`：架构方案（结论、包结构、Manifest、实现顺序）
 >
-> 本报告记录**结论是怎么得出的**：做了哪些实验、测到了什么数据、查了哪些资料、比较过哪些备选方案、还有哪些没验证。动手实现时以架构方案为准；对某条结论有疑问时，回到本报告看依据。
+> > 路径说明（主力开发补注，2026-10-31）：本报告写于截图迁移之前。文中的 `app/src/androidTest/assets/screenshots/` 现在是 `core-engine/src/test/resources/screenshots/`，`labels_draft.csv` 现在是 `labels.csv`（维护者已核对，全部正确），`labels_draft_zh.csv` 已删除。
+
+本报告记录**结论是怎么得出的**：做了哪些实验、测到了什么数据、查了哪些资料、比较过哪些备选方案、还有哪些没验证。动手实现时以架构方案为准；对某条结论有疑问时，回到本报告看依据。
 
 ---
 
