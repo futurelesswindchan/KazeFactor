@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
-> 最后更新：2026-10-30
+> 最后更新：2026-10-31
 > 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行；游戏内识别与自动刷新部分尚未开始。
-> 最新提交：`91b3630`
+> 最新代码提交：`a1e1a6e`
 
 本文件面向接手开发的任何人员。下文中「维护者」指项目所有者，「本文」所述状态均已对照仓库实际代码核实；未经本轮运行验证的结论会单独注明。
 
@@ -57,7 +57,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 ## 4. Git 状态与提交约定
 
-- 工作区干净，最新提交 `91b3630`。本文件的本次更新需要单独提交。
+- 最新代码提交为 `a1e1a6e`；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
@@ -67,6 +67,9 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 | 提交 | 内容 |
 | --- | --- |
+| a1e1a6e | 修复输入框焦点无法清除、保存后重复返回导致白屏 |
+| c051f36 | 剪贴板迁移至 `LocalClipboard`；删除无引用的模板图标资源与空类 |
+| 4ccf01a | 对照仓库现状重写本备忘录 |
 | 91b3630 | 忽略 Android Studio 设备管理器界面配置 |
 | eddd1e1 | 天蓝底表情包自适应图标；README 引入艺术字 Logo；清理根目录冗余素材 |
 | 24f2360 | 已选与排除因子置顶预览槽、列表卡片图标展示、分类名汉化补全 |
@@ -86,7 +89,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 | 因子数据（运行时） | `app/src/main/assets/factors.json` | 由 `AssetFactorLoader` 加载 |
 | 因子数据（测试用） | `core-domain/src/test/resources/factors.json` | 领域层测试读取；与上一份为两份独立副本，修改时须同步 |
 | 因子图标（运行时） | `app/src/main/res/drawable/*.png`（59 个） | 由 `FactorIconMapper` 按 `key` 动态查找 |
-| 因子图标（副本） | `app/src/main/assets/factors/icons/*.png`（59 个） | 当前代码未引用，见第 9 节 |
+| 因子图标（副本） | `app/src/main/assets/factors/icons/*.png`（59 个） | 当前代码未引用；维护者决定暂时保留，待识别方案实机确定后再定去留，见第 9 节 |
 | 实机截图 | `app/src/androidTest/assets/screenshots/`（47 张） | `disable01~07` 为问号状态，`enable01~40` 为已刷新状态；当前尚无测试代码引用 |
 | README Logo | `assets/logo/`（`KAZE FACTOR.svg`、`K.svg`、`Pinia.png/.webp`） | 仅供 README 使用，不打包进 APK |
 | 应用图标 | `res/mipmap-anydpi/ic_launcher*.xml` + `res/drawable/ic_launcher_foreground_emoji.xml` + `res/mipmap-*/ic_launcher_emoji.png` | 见第 7.4 节 |
@@ -134,15 +137,14 @@ codec/
 
 口令码 payload：dataVersion(varint) | flags | wanted ids | unwanted ids | optional ids + minOptional。遇到不认识的 id 提示「请更新 App」，CRC 错误提示「粘贴有误」，均不崩溃。
 
-测试（`core-domain/src/test/kotlin/`）：FactorDatabaseTest(11)、SlotConstraintTest(4)、ProbabilityCalculatorTest(9)、RuleEngineTest(13)、RecipeCodecTest(14)、VarintCodecTest(14)、Base32EncoderTest(10)、CRC8CalculatorTest(10)，共 85 个 `@Test` 方法。**本轮未运行领域层测试**，接手后应先运行一次确认结果。概率参考值：只要「无限能量」为 8.74%（约 11.4 次），「无限能量 + 特卖日」为 0.171%（约 584 次）。
-
-`core-domain/src/main/java/.../domain/LegendaryClassName.kt` 是模板生成的空类，无任何引用，可删除。
+测试（`core-domain/src/test/kotlin/`）：FactorDatabaseTest(11)、SlotConstraintTest(4)、ProbabilityCalculatorTest(9)、RuleEngineTest(13)、RecipeCodecTest(14)、VarintCodecTest(14)、Base32EncoderTest(10)、CRC8CalculatorTest(10)，共 85 个 `@Test` 方法。2026-10-31 已运行，85 个全部通过（0 failures / 0 errors）。概率参考值：只要「无限能量」为 8.74%（约 11.4 次），「无限能量 + 特卖日」为 0.171%（约 584 次）。
 
 ### 7.2 app（`app/src/main/kotlin/.../`，`MainActivity.kt` 位于 `app/src/main/java/.../`）
 
 ```
 KazeFactorApplication.kt     全局手动依赖注入：factorDatabase、recipeRepository（lazy 单例）
-MainActivity.kt              Surface + NavHost，串联三个界面；从 Application 取依赖
+MainActivity.kt              Surface + NavHost，串联三个界面；从 Application 取依赖；
+                             popBackStackFrom(entry) 仅在页面处于 RESUMED 时返回，防止重复返回弹空返回栈（白屏）
 util/AssetFactorLoader.kt    从 assets/factors.json 加载 FactorDatabase
 data/
   datastore/RecipeDataStore.kt     DataStore Preferences（文件名 recipe_storage，键 recipes_json），
@@ -157,8 +159,10 @@ ui/
   navigation/Navigation.kt     字符串路由：recipe_list、recipe_editor?recipeId=、recipe_code?recipeId=
   screen/RecipeListScreen.kt   配方列表；卡片展示想要/排除因子图标；顶栏「导入口令」入口
   screen/RecipeEditorScreen.kt 配方编辑；固定高度的概率横幅（含低概率标签与已选/排除置顶槽）；
-                               图标网格 / 列表视图切换（默认网格）
-  screen/RecipeCodeScreen.kt   recipeId 非空为导出模式，为空为导入模式
+                               图标网格 / 列表视图切换（默认网格）；键盘收起、点击空白或因子、
+                               按完成键、保存时清除输入框焦点；保存成功以 Toast 提示并立即返回，
+                               保存中禁用保存按钮
+  screen/RecipeCodeScreen.kt   recipeId 非空为导出模式，为空为导入模式；复制使用 LocalClipboard
   component/FactorSelector.kt  FactorSelectionState（NONE/WANTED/UNWANTED）、FactorDisplayMode、
                                列表项、网格项、CompactFactorChip、状态角标、分类中文名
   component/RuleViolationCard.kt  阻塞性错误卡片与一键修复
@@ -183,6 +187,7 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 
 - 图标为自适应图标：背景为纯色 `@color/ic_launcher_background`（`#FF38BDF8`），前景为 `drawable/ic_launcher_foreground_emoji.xml`，它把 `mipmap-*/ic_launcher_emoji.png`（表情包，临时图标）四边各内缩 24dp。
 - PNG 改名为 `ic_launcher_emoji` 是为了避免与 `mipmap-anydpi/ic_launcher.xml` 同名而形成循环引用。内缩使用 dp 而非百分比，因为 InsetDrawable 的百分比写法需要 API 28，而 minSdk 为 26。
+- 模板自带的 `drawable/ic_launcher_foreground.xml`、`drawable/ic_launcher_background.xml` 与各密度 `ic_launcher_round.webp` 已于 `c051f36` 删除。Manifest 的 `roundIcon` 仍指向 `@mipmap/ic_launcher_round`，由 `mipmap-anydpi/ic_launcher_round.xml` 提供（minSdk 26 总是优先使用 anydpi）。视觉协作方交付的同名新文件可直接放入，不会冲突。
 - 当前没有 `<monochrome>` 层，Android 13+ 主题图标不可用。
 - 开屏页尚未定制：Android 12+ 使用系统默认开屏，显示的是上述自适应图标前景。`themes.xml` 的父主题为 `android:Theme.Material.Light.NoActionBar`，未引入 `core-splashscreen`。
 - 原创矢量图标与自定义 Compose 开屏页的技术规格已交给负责视觉设计的协作方，将在单独话题中完成。约定的交付物：`ic_launcher_background.xml`、`ic_launcher_foreground.xml`（108dp 画布，主体落在中心 66dp 安全区内），以及 `ui/screen/SplashScreen.kt`（签名 `fun SplashScreen(onSplashFinished: () -> Unit)`，新增路由 `splash`，结束后 `popUpTo(splash) { inclusive = true }`）。
@@ -191,17 +196,13 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 
 ## 8. 下一步
 
+已完成（2026-10-31）：领域层测试 85 个全部通过；小型清理（`c051f36`）；编辑页焦点与重复返回白屏修复（`a1e1a6e`），均已真机验证。
+
 建议按以下顺序推进，每一步完成后单独提交：
 
-1. 提交本文件的更新。
-2. 运行 `:core-domain:test`，确认 85 个测试全部通过。
-3. 接入原创矢量图标与自定义开屏页（单独话题进行），并补上 `<monochrome>` 层。
-4. 小型清理（可合并为一次提交）：
-   - 将 `RecipeCodeScreen.kt` 第 207 行弃用的 `LocalClipboardManager` 替换为 `LocalClipboard`。
-   - 删除无引用资源：`drawable/ic_launcher_foreground.xml`、`drawable/ic_launcher_background.xml`、`mipmap-*/ic_launcher_round.webp`、`LegendaryClassName.kt`。
-   - 决定 `assets/factors/icons/` 的去留（见第 9 节）。
-5. 更新 README：项目状态、功能完成情况；并删除「帧差检测，等待动画结束后再识别」一条，它与「刷新没有动画」的实机结论矛盾。
-6. 进入核心功能阶段（二选一先行，均需先与维护者确认方案）：
+1. 接入原创矢量图标与自定义开屏页（单独话题进行），并补上 `<monochrome>` 层。
+2. 更新 README：项目状态、功能完成情况；并删除「帧差检测，等待动画结束后再识别」一条，它与「刷新没有动画」的实机结论矛盾。
+3. 进入核心功能阶段（二选一先行，均需先与维护者确认方案）：
    - 识别方案：用 `androidTest/assets/screenshots/` 中的截图定位槽位与刷新按钮，实现模板匹配，并以截图编写识别测试。
    - 悬浮窗与无障碍服务：配方选择、频率设置、开始/暂停，以及第 10 节所述状态机。
 
@@ -210,9 +211,8 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 ## 9. 已知问题与待决事项
 
 - **导入含可选因子的旧口令码**：`RecipeCodeViewModel.importCode` 会把 `optionalFactorIds` 与 `minOptional` 原样存入；而 `RecipeEditorViewModel.loadRecipe` 只读取想要与不想要，用户再次保存时可选部分会被静默丢弃。由于 UI 已不再生成可选因子，目前只影响旧口令码。处理方式待维护者决定：导入时直接丢弃，或保留现状。
-- **图标资源重复**：`assets/factors/icons/` 与 `res/drawable/` 各有 59 个相同图标，前者无代码引用，会增加 APK 体积。若后续 OpenCV 模板匹配计划从 assets 读取原图，可保留；否则建议删除。
+- **图标资源重复**：`app/src/main/assets/factors/icons/` 与 `res/drawable/` 各有 59 个相同图标，前者无代码引用。维护者决定暂时保留（体积影响小），待识别方案实机确定后再决定：若模板直接从实机截图裁取则删除；若使用原图，注意 `res/drawable` 解码时会按屏幕密度缩放，从 assets 读取可拿到原始像素。
 - **新建配方不能直接分享**：新建配方保存前没有 id，编辑页的分享按钮为禁用状态，需要保存后从列表进入分享。
-- **保存成功提示不可见**：编辑页保存成功后立即返回列表，Snackbar「保存成功」基本无法被看到。
 - **源码目录不统一**：`MainActivity.kt` 位于 `src/main/java/`，其余源码位于 `src/main/kotlin/`。不影响构建，可择机统一。
 - **两份 factors.json**：运行时与测试各一份，修改因子数据时必须同步两处。
 
