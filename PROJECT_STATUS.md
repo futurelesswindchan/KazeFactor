@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
-> 最后更新：2026-10-31
-> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）架构已定，已完成架构方案第 9 节第 1 步（新建 `core-engine` 模块、迁移截图），下一步是第 2 步。
-> 最新代码提交：`7e193d5`
+> 最后更新：2026-11-02
+> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步（`core-engine` 模块、槽位模板匹配与截图答案测试），下一步是第 3 步。
+> 最新代码提交：`78dce74`
 
 **新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
@@ -48,14 +48,14 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 - 路径：`D:\AndroidStudioProjects\KazeFactor`；包名：`io.github.futurelesswindchan.kazefactor`
 - 模块：
   - `core-domain`：纯 Kotlin JVM 模块（java-library + kotlin.jvm + kotlin.serialization），无 Android 依赖。
-  - `core-engine`：纯 Kotlin JVM 模块，放识别算法与刷新状态机（架构方案第 2.1 节）。`api(project(":core-domain"))`，依赖 kotlinx-coroutines 1.9.0（与 app 传递依赖解析版本一致）。目前只有构建配置与测试资源，还没有源码。
+  - `core-engine`：纯 Kotlin JVM 模块，放识别算法与刷新状态机（架构方案第 2.1 节）。`api(project(":core-domain"))`，依赖 kotlinx-coroutines 1.9.0（与 app 传递依赖解析版本一致）。已有识别层源码（第 7.5 节），刷新状态机尚未实现。
   - `app`：Android 应用模块，依赖 `core-domain` 与 `core-engine`。
 - 工具链：Gradle 9.8.2、AGP 9.5.0（**内置 Kotlin 支持，`app` 不要再添加 kotlin-android 插件**）、Kotlin 2.2.10、Compose BOM 2026.02.01、compileSdk / targetSdk 37、minSdk 26、Java 11 字节码。
 - 主要依赖（版本见 `gradle/libs.versions.toml`）：navigation-compose 2.10.2、lifecycle-viewmodel-compose 2.11.0、datastore-preferences 1.2.0、kotlinx-serialization-json 1.8.0、material-icons-extended。
 - 已删除 `gradle/gradle-daemon-jvm.properties`（它要求下载 JDK 25，网络失败），并在 `gradle.properties` 中设置 `org.gradle.java.installations.auto-download=false`。`.gitignore` 也已忽略该文件。
 - 常用命令（PowerShell 5.1，不支持 `&&`，请用 `;`）：
   - 领域层单元测试：`.\gradlew.bat :core-domain:test --console=plain`，结果见 `core-domain\build\test-results\test\*.xml`
-  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`（2026-10-31 运行为 `NO-SOURCE`，尚无测试代码）
+  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`，结果见 `core-engine\build\test-results\test\*.xml`；阈值报告与模板可分性报告写入 `core-engine\build\reports\recognition\`（不提交）
 - Gradle Wrapper 已于 `7e193d5` 用 9.8.2 重新生成，恢复了分发包 SHA-256 校验（`distributionSha256Sum`）。升级 Gradle 时请用 `gradlew wrapper --gradle-distribution-sha256-sum` 一并更新校验和。
 - 构建会提示「Deprecated Gradle features ... incompatible with Gradle 10」，目前不影响使用，升级 Gradle 10 前用 `--warning-mode all` 排查。
   - 构建：`.\gradlew assembleDebug`；安装到设备：`.\gradlew installDebug`
@@ -64,7 +64,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 ## 4. Git 状态与提交约定
 
-- 最新代码提交为 `7e193d5`；本文件每次更新单独以 `docs(status)` 提交。
+- 最新代码提交为 `78dce74`；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
@@ -74,6 +74,8 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 | 提交 | 内容 |
 | --- | --- |
+| 78dce74 | 实现槽位模板匹配与截图答案测试（架构方案第 9 节第 2 步）；架构方案第 3.2 节回写实测阈值 |
+| 30a1450 | 同步第 1 步完成状态与工具链升级（本文件） |
 | 7e193d5 | 以 9.8.2 重新生成 Gradle Wrapper，恢复分发包校验和 |
 | 1fc315e | IDE 配置登记 core-engine 模块，新增项目拼写词典 |
 | 0138436 | 升级 Gradle 9.8.2 与 AGP 9.5.0 |
@@ -206,6 +208,31 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 - 开屏页尚未定制：Android 12+ 使用系统默认开屏，显示的是上述自适应图标前景。`themes.xml` 的父主题为 `android:Theme.Material.Light.NoActionBar`，未引入 `core-splashscreen`。
 - 维护者确认（2026-10-31）：本工具以实用为主，当前的简易图标与系统默认开屏即为最终方案，不再另做原创矢量图标与自定义 Compose 开屏页。
 
+### 7.5 core-engine（`core-engine/src/main/kotlin/.../engine/`）
+
+```
+image/
+  ArgbImage.kt          width、height、pixels（0xAARRGGBB，行优先）；通道读取与像素差工具函数
+  ImageOps.kt           crop、面积平均缩放（RGB 按 alpha 加权）、居中贴图、alpha 合成
+vision/
+  RecognitionModels.kt  SlotResult（Question / Factor / Ambiguous / Unknown）、FrameResult、PixelRect
+  ReferenceLayout.kt    2388×1080 参考坐标：槽位、点击刷新位置、搜索边距 4 px
+  TemplateBank.kt       图标 → 90×90 透明画布上的掩膜模板（alpha ≥ 200）；尺寸系数覆盖表；按槽位剪枝候选
+  SlotMatcher.kt        MatchThresholds；问号比较 → 粗搜 ±2 → 前 3 名精修 ±3 → 差距不足时二次比较
+  FactorRecognizer.kt   一帧 → FrameResult；目前只支持 2388×1080（scale = 1，未校准）
+```
+
+尚未实现：`Calibration`、`Calibrator`（第 3 步），`loop/` 下的接口与状态机（第 4 步）。
+
+测试（`core-engine/src/test/kotlin/.../engine/`）：
+
+- `testutil/TestFixtures.kt`：经系统属性读 app 的 `factors.json` 与图标，经 classpath 读截图与 `labels.csv`。问号模板暂时从 `disable01.jpg` 现场裁取。
+- `vision/ScreenshotAnswerTest`(2)：47 张截图逐槽核对答案。
+- `vision/ThresholdReportTest`(1)：只出报告不断言。
+- `vision/TemplateSeparabilityTest`(2)：59 个模板合成到黑色、中灰背景上识别为自己；各槽候选数 28 / 37 / 39 / 16。
+
+2026-11-01 已运行，5 个测试全部通过（0 failures / 0 errors），188 个槽位全部正确，没有 `Ambiguous`。阈值实测与余量见架构方案第 3.2 节，初值 10 / 30 / 8 / 8 全部保留。
+
 ---
 
 ## 8. 下一步
@@ -214,12 +241,17 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 - 领域层测试 85 个全部通过；小型清理（`c051f36`）；编辑页焦点与重复返回白屏修复（`a1e1a6e`），均已真机验证。
 - 架构方案第 9 节第 1 步（`e287a7e`）：`core-engine` 模块建好，`:core-engine:test` 与 `assembleDebug` 均构建通过；截图与 `labels.csv` 已迁入 `core-engine/src/test/resources/screenshots/`。
 
+已完成（2026-11-01）：
+- 架构方案第 9 节第 2 步（`78dce74`）：识别层与前 3 类测试，`:core-engine:test` 5 个测试全部通过，详见第 7.5 节。本步只改了 `core-engine`，没有动 app，未运行 `assembleDebug`。
+
 建议按以下顺序推进，每一步完成后单独提交：
 
-1. 核心功能阶段：按 `docs/ARCHITECTURE_CORE_FEATURE.md` 第 9 节实现，**下一步是第 2 步**：`ArgbImage`、`ImageOps`、`ReferenceLayout`、`TemplateBank`、`SlotMatcher`、`FactorRecognizer`（先用固定参考坐标，不做校准），以及答案测试、阈值报告、模板可分性 3 类测试。动手前注意：
-   - 阈值不要照抄调研报告的数字（那些来自 bicubic 缩放），先跑出阈值报告再定，并回写架构方案第 3.2 节。
-   - 测试通过系统属性 `kaze.iconDir`、`kaze.factorsJson` 读取 app 中的图标与 `factors.json`（已在 `core-engine/build.gradle.kts` 配好）；截图与 `labels.csv` 走测试 classpath。
-   - `FactorDatabase` 已有 `getFactorByKey()`，`labels.csv` 的 key 转 id 可直接用。
+1. 核心功能阶段：按 `docs/ARCHITECTURE_CORE_FEATURE.md` 第 9 节实现，**下一步是第 3 步**：从截图裁出骰子锚点、循环箭头锚点和 4 个问号模板，放入 `app/src/main/assets/recognition/`；实现 `Calibration`、`Calibrator`；新增合成分辨率测试（缩放 0.75 / 1.25 倍、加黑边，校准误差 ≤ 2 px，答案测试仍通过）。动手前注意：
+   - 两个锚点的精确矩形还没量，要先从截图里量出。AI 助手目前无法直接查看图片（见第 11 节），可以写测试按像素方差分析定位，或请维护者协助确认。
+   - 裁好问号模板后，把 `TestFixtures.questionTemplates` 改为读取 `assets/recognition/`（代码里已留 TODO），并把 `assets/recognition/` 路径同样通过系统属性传给测试，需要改 `core-engine/build.gradle.kts`。
+   - `FactorRecognizer.analyze` 目前要求截图必须是 2388×1080，接入校准时要去掉这个限制。`TemplateBank` 已支持 `scale` 参数。
+   - 第 2 步的阈值实测只覆盖 scale = 1，合成分辨率下要复测，并回写架构方案第 3.2 节。
+   - 第 3.3 节的锚点阈值 T_anchor 需要非因子界面截图才能验证，这批截图还没补拍（见下文「尚缺」）。
 
    架构方案第 10 节事项已确认（2026-10-31）：
    - 第 1.5 节的默认值全部采用（N = 3、次数上限 = 期望 × 3 且至少 100、默认 3 次/秒、命中只震动）。
@@ -237,7 +269,7 @@ UI 与 ViewModel 已不再产生可选因子，但以下位置仍保留相关字
 - **版权声明的展示位置**：原定写在开屏页底部，但现在用的是系统默认开屏，无法显示文字。需要维护者决定改放在哪里。
 - **新建配方不能直接分享**：新建配方保存前没有 id，编辑页的分享按钮为禁用状态，需要保存后从列表进入分享。
 - **源码目录不统一**：`MainActivity.kt` 位于 `src/main/java/`，其余源码位于 `src/main/kotlin/`。不影响构建，可择机统一。
-- **两份 factors.json**：运行时与测试各一份，修改因子数据时必须同步两处。
+- **两份 factors.json**：运行时与 `core-domain` 测试各一份，修改因子数据时必须同步两处。`core-engine` 测试直接读运行时那份，不算第三份。
 
 ---
 
