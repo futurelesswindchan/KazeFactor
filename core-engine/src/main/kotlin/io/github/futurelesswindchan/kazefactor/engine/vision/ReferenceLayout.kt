@@ -36,11 +36,23 @@ object ReferenceLayout {
      */
     const val SEARCH_MARGIN = 4
 
-    /** 刷新按钮循环箭头中心，即点击刷新的位置（10 px 粗定位）。 */
-    const val REFRESH_TAP_X = 1380
+    /**
+     * 刷新按钮的点击位置：循环箭头中心。
+     *
+     * 由 `AnchorSurveyTest` 测得的箭头外框 x 1343..1411、y 399..467 算出（架构方案第 5 节）。
+     * 箭头在开关关闭时几乎看不见，不能当锚点，但点击位置不受影响。
+     */
+    const val REFRESH_TAP_X = 1377
 
     /** 见 [REFRESH_TAP_X]。 */
-    const val REFRESH_TAP_Y = 432
+    const val REFRESH_TAP_Y = 433
+
+    /**
+     * 骰子锚点的矩形，开关开、关两种状态下像素完全相同（`AnchorSurveyTest`，47 张截图 std 为 0）。
+     *
+     * 模板文件为 `assets/recognition/dice.png`，由 `RecognitionAssetGenerator` 从这个矩形裁出。
+     */
+    val DICE_RECT = PixelRect(1475, 125, 33, 38)
 
     /**
      * 返回第 [slotIndex] 槽在参考截图上的矩形。
