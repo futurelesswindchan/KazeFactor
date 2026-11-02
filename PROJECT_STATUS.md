@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
 > 最后更新：2026-11-02
-> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步（`core-engine` 模块、槽位模板匹配与截图答案测试），下一步是第 3 步。
-> 最新代码提交：`78dce74`
+> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步（`core-engine` 模块、槽位模板匹配与截图答案测试），正在做第 3a 步（自动校准）：识别素材已裁出（`6514fe6`），下一项是 `Calibration`。
+> 最新代码提交：`6514fe6`
 
 **新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
@@ -55,7 +55,8 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 - 已删除 `gradle/gradle-daemon-jvm.properties`（它要求下载 JDK 25，网络失败），并在 `gradle.properties` 中设置 `org.gradle.java.installations.auto-download=false`。`.gitignore` 也已忽略该文件。
 - 常用命令（PowerShell 5.1，不支持 `&&`，请用 `;`）：
   - 领域层单元测试：`.\gradlew.bat :core-domain:test --console=plain`，结果见 `core-domain\build\test-results\test\*.xml`
-  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`，结果见 `core-engine\build\test-results\test\*.xml`；阈值报告与模板可分性报告写入 `core-engine\build\reports\recognition\`（不提交）
+  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`，结果见 `core-engine\build\test-results\test\*.xml`；阈值报告、模板可分性报告和锚点测量报告写入 `core-engine\build\reports\recognition\`（不提交）
+  - 重新裁取识别素材（平时自动跳过）：`.\gradlew.bat :core-engine:test --tests "*RecognitionAssetGenerator*" '-Pkaze.generateRecognitionAssets' --console=plain`。**`-P` 参数必须加单引号**，否则 PowerShell 会在点号处把它拆开，Gradle 报「Task '.generateRecognitionAssets' not found」（2026-11-02 实测）
 - Gradle Wrapper 已于 `7e193d5` 用 9.8.2 重新生成，恢复了分发包 SHA-256 校验（`distributionSha256Sum`）。升级 Gradle 时请用 `gradlew wrapper --gradle-distribution-sha256-sum` 一并更新校验和。
 - 构建会提示「Deprecated Gradle features ... incompatible with Gradle 10」，目前不影响使用，升级 Gradle 10 前用 `--warning-mode all` 排查。
   - 构建：`.\gradlew assembleDebug`；安装到设备：`.\gradlew installDebug`
@@ -64,7 +65,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 ## 4. Git 状态与提交约定
 
-- 最新代码提交为 `78dce74`；本文件每次更新单独以 `docs(status)` 提交。
+- 最新代码提交为 `6514fe6`；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
@@ -74,6 +75,11 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 | 提交 | 内容 |
 | --- | --- |
+| 6514fe6 | 新增识别素材生成工具，裁出 `dice.png` 与 4 个问号模板；刷新点击位置改为 (1377, 433)，新增 `DICE_RECT` |
+| 7a707e5 | 架构修订：校准改为骰子粗定位 + 面板边框精修，新增手动吸附与位置档案（架构军师） |
+| 4259e92 | 新增锚点测量报告，按问号与已刷新截图分组统计 |
+| 0cc2cf1 | 更新 AI 助手可查看图片的协作说明（本文件） |
+| 353949a | 同步第 2 步完成状态与第 3 步注意事项（本文件） |
 | 78dce74 | 实现槽位模板匹配与截图答案测试（架构方案第 9 节第 2 步）；架构方案第 3.2 节回写实测阈值 |
 | 30a1450 | 同步第 1 步完成状态与工具链升级（本文件） |
 | 7e193d5 | 以 9.8.2 重新生成 Gradle Wrapper，恢复分发包校验和 |
@@ -106,6 +112,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 | 因子数据（测试用） | `core-domain/src/test/resources/factors.json` | 领域层测试读取；与上一份为两份独立副本，修改时须同步 |
 | 因子图标（运行时） | `app/src/main/res/drawable/*.png`（59 个） | 由 `FactorIconMapper` 按 `key` 动态查找 |
 | 因子图标（识别模板） | `app/src/main/assets/factors/icons/*.png`（59 个） | 与 `res/drawable` 内容相同（MD5 一致）。按架构方案保留，作为识别模板的唯一来源；`res/drawable` 解码时会按屏幕密度缩放，不能用作模板 |
+| 识别素材 | `app/src/main/assets/recognition/`：`dice.png`（33×38）、`question_slot1~4.png`（各 90×90） | 由 `RecognitionAssetGenerator` 从 `disable01.jpg` 裁出（`6514fe6`），已看图核对。版权同因子图标，`ICON_LICENSE.txt` 已覆盖 |
 | 实机截图 | `core-engine/src/test/resources/screenshots/`（47 张，从 `app/src/androidTest/assets/` 迁入） | `disable01~07` 为问号状态，`enable01~40` 为已刷新状态。答案文件 `labels.csv`（值为因子 key，问号写 `?`）已由维护者核对，全部正确（2026-10-31） |
 | README Logo | `assets/logo/`（`KAZE FACTOR.svg`、`K.svg`、`Pinia.png/.webp`） | 仅供 README 使用，不打包进 APK |
 | 应用图标 | `res/mipmap-anydpi/ic_launcher*.xml` + `res/drawable/ic_launcher_foreground_emoji.xml` + `res/mipmap-*/ic_launcher_emoji.png` | 见第 7.4 节 |
@@ -216,13 +223,13 @@ image/
   ImageOps.kt           crop、面积平均缩放（RGB 按 alpha 加权）、居中贴图、alpha 合成
 vision/
   RecognitionModels.kt  SlotResult（Question / Factor / Ambiguous / Unknown）、FrameResult、PixelRect
-  ReferenceLayout.kt    2388×1080 参考坐标：槽位、点击刷新位置、搜索边距 4 px
+  ReferenceLayout.kt    2388×1080 参考坐标：槽位、点击刷新位置 (1377, 433)、骰子 DICE_RECT、搜索边距 4 px
   TemplateBank.kt       图标 → 90×90 透明画布上的掩膜模板（alpha ≥ 200）；尺寸系数覆盖表；按槽位剪枝候选
   SlotMatcher.kt        MatchThresholds；问号比较 → 粗搜 ±2 → 前 3 名精修 ±3 → 差距不足时二次比较
   FactorRecognizer.kt   一帧 → FrameResult；目前只支持 2388×1080（scale = 1，未校准）
 ```
 
-尚未实现：`Calibration`、`Calibrator`（第 3 步），`loop/` 下的接口与状态机（第 4 步）。
+尚未实现：`Calibration`、`Calibrator`（第 3a 步）；开关判断与 `ScreenState`（第 3b 步）；`Snapper`、`CalibrationProfile`、`ProfileVerifier`（第 3c 步）；`loop/` 下的接口与状态机（第 4 步）。
 
 测试（`core-engine/src/test/kotlin/.../engine/`）：
 
@@ -230,8 +237,10 @@ vision/
 - `vision/ScreenshotAnswerTest`(2)：47 张截图逐槽核对答案。
 - `vision/ThresholdReportTest`(1)：只出报告不断言。
 - `vision/TemplateSeparabilityTest`(2)：59 个模板合成到黑色、中灰背景上识别为自己；各槽候选数 28 / 37 / 39 / 16。
+- `vision/AnchorSurveyTest`(1)：锚点测量，只出报告。按问号截图、已刷新截图分组统计均值与标准差，输出字符图、前景块外框和均值 / 标准差 PNG。架构修订（`7a707e5`）的数据来源。
+- `vision/RecognitionAssetGenerator`(1)：素材生成工具，平时跳过，用法见第 3 节。
 
-2026-11-01 已运行，5 个测试全部通过（0 failures / 0 errors），188 个槽位全部正确，没有 `Ambiguous`。阈值实测与余量见架构方案第 3.2 节，初值 10 / 30 / 8 / 8 全部保留。
+2026-11-01 已运行，前 3 个测试类共 5 个测试全部通过（0 failures / 0 errors），188 个槽位全部正确，没有 `Ambiguous`。阈值实测与余量见架构方案第 3.2 节，初值 10 / 30 / 8 / 8 全部保留。2026-11-02 最后一次全量运行：6 个通过，1 个跳过（素材生成器）。之后 `RecognitionAssetGenerator.kt` 只改了文档注释，还没重新编译过。
 
 ---
 
@@ -244,14 +253,29 @@ vision/
 已完成（2026-11-01）：
 - 架构方案第 9 节第 2 步（`78dce74`）：识别层与前 3 类测试，`:core-engine:test` 5 个测试全部通过，详见第 7.5 节。本步只改了 `core-engine`，没有动 app，未运行 `assembleDebug`。
 
+已完成（2026-11-02）：
+- 锚点测量（`4259e92`）→ 架构军师据此修订校准方案（`7a707e5`）→ 裁出识别素材（`6514fe6`）。`6514fe6` 往 `app/src/main/assets/` 加了 5 个 PNG，没有改 app 的代码，未运行 `assembleDebug`。
+
 建议按以下顺序推进，每一步完成后单独提交：
 
-1. 核心功能阶段：按 `docs/ARCHITECTURE_CORE_FEATURE.md` 第 9 节实现，**下一步是第 3 步**：从截图裁出骰子锚点、循环箭头锚点和 4 个问号模板，放入 `app/src/main/assets/recognition/`；实现 `Calibration`、`Calibrator`；新增合成分辨率测试（缩放 0.75 / 1.25 倍、加黑边，校准误差 ≤ 2 px，答案测试仍通过）。动手前注意：
-   - 两个锚点的精确矩形还没量，要先从截图里量出。AI 助手可以直接查看截图确认锚点的大致位置与外观（见第 11 节），但肉眼估计的坐标达不到校准所需的 2 px 精度，精确矩形仍须写测试按像素分析定位。
-   - 裁好问号模板后，把 `TestFixtures.questionTemplates` 改为读取 `assets/recognition/`（代码里已留 TODO），并把 `assets/recognition/` 路径同样通过系统属性传给测试，需要改 `core-engine/build.gradle.kts`。
-   - `FactorRecognizer.analyze` 目前要求截图必须是 2388×1080，接入校准时要去掉这个限制。`TemplateBank` 已支持 `scale` 参数。
+1. 核心功能阶段：按 `docs/ARCHITECTURE_CORE_FEATURE.md` 第 9 节实现。**第 3 步已按架构修订（`7a707e5`）拆成 3a / 3b / 3c**，以架构方案第 3.1、3.3、3.4 节和第 9 节的表为准。
+
+   第 3a 步（自动校准）进度：
+   - [x] 锚点测量（`4259e92`）：骰子 x 1475..1507、y 125..162 在开关开、关两种状态下完全相同；循环箭头和标题文字在两种状态下外观不同，箭头作废为锚点。
+   - [x] 识别素材（`6514fe6`）：`assets/recognition/` 下的 `dice.png` 和 4 个问号模板，已看图核对。
+   - [ ] **下一项**：`Calibration`，按像素边界换算 `屏幕 = origin + scale × 参考`，**直接用 `scaleX`、`scaleY` 两个字段**（维护者 2026-11-02 确认），自动校准两个字段填相同值。`ReferenceLayout` 补上面板竖条 x 966 / 1006 / 1747 / 1789，横边 y 236 / 350 / 690，以及剖面取样的行列范围（架构方案第 3.1 节表格）。单元测试要覆盖 scale ≠ 1。
+   - [ ] `Calibrator` 第 1 段：骰子粗定位（缩放 0.80~1.20 倍、步长 0.02，1/4 分辨率全屏粗搜，再在原分辨率精修 ±4 px）。
+   - [ ] `Calibrator` 第 2 段：边缘精修（梯度 + 抛物线插值、最小二乘、残差 ≤ 1.5 px、槽位验证、最多 3 帧）。
+   - [ ] `CalibrationSyntheticTest`：验收第 9 节第 3 步第 ①②③ 条；`FactorRecognizer` 接入 `Calibration`，去掉只接受 2388×1080 的限制。全部通过后提交 `feat(engine): 实现骰子粗定位与面板边框精修校准`。
+
+   动手前注意：
+   - 问号模板已经在 `assets/recognition/` 里了，测试可通过系统属性 `kaze.recognitionDir` 读取（已在 `core-engine/build.gradle.kts` 配好）。`TestFixtures.questionTemplates` 还在从 `disable01.jpg` 现场裁取（代码里有 TODO），接入校准时一并改掉。
+   - 第 3.1 节第 2 段纵向剖面的取样列 x 1083..1086 等，架构方案明确要求**按原样实现，不要改**。
+   - 第 3.1 节要求统一按「像素边界」换算，表中坐标是「跳变后第一个像素」的下标，正好等于边界坐标。
+   - 第 3c 步时横纵缩放可以不等，到时 `TemplateBank` 要支持按两个方向分别缩放，目前只支持一个 `scale`。
    - 第 2 步的阈值实测只覆盖 scale = 1，合成分辨率下要复测，并回写架构方案第 3.2 节。
-   - 第 3.3 节的锚点阈值 T_anchor 需要非因子界面截图才能验证，这批截图还没补拍（见下文「尚缺」）。
+   - T_anchor 和开关判断的「介于两者之间」区间，需要非因子界面截图才能验证，这批截图还没补拍（架构方案第 10 节第 2、7 条）。
+   - 架构方案里有两处旧说法，留给架构军师决定是否修改：第 1.2 节「界面锚点（标题）」，现在应该是骰子；第 3.2 节「易混图标」第 1 条还写着「或者只有一方不透明」「效果要等第 2 步的测试结果」，和同一节下方的实测说明不一致。
 
    架构方案第 10 节事项已确认（2026-10-31）：
    - 第 1.5 节的默认值全部采用（N = 3、次数上限 = 期望 × 3 且至少 100、默认 3 次/秒、命中只震动）。
@@ -275,10 +299,11 @@ vision/
 
 ## 10. 核心功能架构
 
-以 `docs/ARCHITECTURE_CORE_FEATURE.md` 为准（2026-10-31 交付，取代本节旧内容）。主要结论：
+以 `docs/ARCHITECTURE_CORE_FEATURE.md` 为准（2026-10-31 交付，2026-11-01 两次修订，取代本节旧内容）。主要结论：
 
 - 新建纯 Kotlin JVM 模块 `core-engine`，放识别算法和刷新状态机；依赖方向 app → core-engine → core-domain。
-- 识别：纯 Kotlin 掩膜像素差模板匹配，不引入 OpenCV；模板由 `assets/factors/icons/` 原图缩放生成；用骰子图标校准。
+- 识别：纯 Kotlin 掩膜像素差模板匹配，不引入 OpenCV；模板由 `assets/factors/icons/` 原图缩放生成。
+- 位置（2026-11-01 修订）：自动校准为主（骰子粗定位 + 面板边框精修），失败时手动拖框并自动吸附；设置成功后保存位置档案，之后每次开始先做快速核验。首次设置和每次出错重设都要用户确认预览。
 - 截图：先做无障碍截图（`takeScreenshot`，API 30+）；录屏高速模式等真机数据出来再决定做不做。
 - 点击与悬浮窗：均由无障碍服务提供（`dispatchGesture`、`TYPE_ACCESSIBILITY_OVERLAY`），不需要悬浮窗权限。
 - 持久化：继续使用 DataStore。依赖按阶段加入，版本须先查证再锁定。
