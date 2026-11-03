@@ -65,11 +65,15 @@ object ReferenceLayout {
     const val REFRESH_TAP_Y = 433
 
     /**
-     * 骰子锚点的矩形，开关开、关两种状态下像素完全相同（`AnchorSurveyTest`，47 张截图 std 为 0）。
+     * 帮助图标（「挑战因子」标题右侧的白色「?」，原称骰子）的矩形。
+     * 开关开、关两种状态下像素完全相同（`AnchorSurveyTest`，47 张截图 std 为 0）。
      *
-     * 模板文件为 `assets/recognition/dice.png`，由 `RecognitionAssetGenerator` 从这个矩形裁出。
+     * 模板文件为 `assets/recognition/help.png`，由 `RecognitionAssetGenerator` 从这个矩形裁出。
+     *
+     * NOTE: 同一屏上还有两个外观相同的图标，在 (2127, 125) 和约 (1952, 740)，
+     * 粗定位必须保留多个候选，由面板边框精修筛掉假位置（架构方案第 3.1 节第 1 段）。
      */
-    val DICE_RECT = PixelRect(1475, 125, 33, 38)
+    val HELP_ICON_RECT = PixelRect(1475, 125, 33, 38)
 
     // ---- 面板边框精修（架构方案第 3.1 节第 2 段）----
     // 位置都是「跳变后第一个像素」的下标，等于跳变处的像素边界，可直接交给 Calibration 换算。

@@ -17,7 +17,7 @@ class CalibrationTest {
             val ref = ReferenceLayout.slotRect(slot)
             assertEquals(ref, Calibration.IDENTITY.toScreenRect(ref))
         }
-        assertEquals(ReferenceLayout.DICE_RECT, Calibration.IDENTITY.toScreenRect(ReferenceLayout.DICE_RECT))
+        assertEquals(ReferenceLayout.HELP_ICON_RECT, Calibration.IDENTITY.toScreenRect(ReferenceLayout.HELP_ICON_RECT))
     }
 
     @Test
@@ -52,7 +52,12 @@ class CalibrationTest {
         val cal = Calibration(scaleX = 1.1, scaleY = 0.9, originX = -5.5, originY = 12.25)
         // 左 -5.5 + 1.1×1475 = 1617，右 -5.5 + 1.1×1508 = 1653.3 → 1653
         // 上 12.25 + 0.9×125 = 124.75 → 125，下 12.25 + 0.9×163 = 158.95 → 159
-        assertEquals(PixelRect(1617, 125, 36, 34), cal.toScreenRect(ReferenceLayout.DICE_RECT))
+        assertEquals(PixelRect(1617, 125, 36, 34), cal.toScreenRect(ReferenceLayout.HELP_ICON_RECT))
+    }
+
+    @Test
+    fun `帮助图标矩形已跟着改名`() {
+        assertEquals(PixelRect(1475, 125, 33, 38), ReferenceLayout.HELP_ICON_RECT)
     }
 
     @Test

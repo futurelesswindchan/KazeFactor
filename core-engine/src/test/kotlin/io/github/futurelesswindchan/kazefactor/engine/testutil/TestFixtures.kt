@@ -62,6 +62,15 @@ object TestFixtures {
         }
     }
 
+    private val recognitionDir: File by lazy { File(requireProperty("kaze.recognitionDir")) }
+
+    /** 帮助图标模板 `assets/recognition/help.png`（33×38）。 */
+    val helpIconTemplate: ArgbImage by lazy {
+        val file = File(recognitionDir, "help.png")
+        require(file.isFile) { "找不到帮助图标模板：${file.absolutePath}" }
+        file.inputStream().use(::readImage)
+    }
+
     /** `labels.csv` 的全部行，key 已换成因子 id；遇到未知 key 直接报错。 */
     val labels: List<ScreenshotLabel> by lazy {
         val text = resourceStream("screenshots/labels.csv").use { it.readBytes().toString(Charsets.UTF_8) }

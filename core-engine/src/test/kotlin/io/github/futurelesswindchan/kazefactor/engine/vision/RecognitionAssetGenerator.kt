@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
  * `-Pkaze` 和 `.generateRecognitionAssets` 两个参数，Gradle 会把后者当成任务名而报错。
  *
  * 生成的文件：
- * - `dice.png`：骰子锚点，参考坐标 x 1475..1507、y 125..162（33×38）
+ * - `help.png`：帮助图标锚点（原称骰子），参考坐标 x 1475..1507、y 125..162（33×38）
  * - `question_slot1.png` ~ `question_slot4.png`：4 个槽位的问号模板，各 90×90
  *
  * 都从 [SOURCE] 裁取。7 张问号截图这两处的像素完全一致（`AnchorSurveyTest` 和架构方案第 0 节），
@@ -33,7 +33,7 @@ import kotlin.test.assertEquals
 class RecognitionAssetGenerator {
 
     @Test
-    fun `从截图裁出骰子与问号模板`() {
+    fun `从截图裁出帮助图标与问号模板`() {
         assumeTrue(
             "未带 -Pkaze.generateRecognitionAssets，跳过素材生成",
             System.getProperty("kaze.generateRecognitionAssets") == "true"
@@ -44,8 +44,8 @@ class RecognitionAssetGenerator {
         val frame = TestFixtures.loadScreenshot(SOURCE)
 
         val outputs = buildList {
-            val dice = ReferenceLayout.DICE_RECT
-            add(DICE_FILE to ImageOps.crop(frame, dice.x, dice.y, dice.width, dice.height))
+            val help = ReferenceLayout.HELP_ICON_RECT
+            add(HELP_ICON_FILE to ImageOps.crop(frame, help.x, help.y, help.width, help.height))
             for (slot in 1..ReferenceLayout.SLOT_COUNT) {
                 val r = ReferenceLayout.slotRect(slot)
                 add(questionFile(slot) to ImageOps.crop(frame, r.x, r.y, r.width, r.height))
@@ -77,8 +77,8 @@ class RecognitionAssetGenerator {
         /** 素材来源截图。 */
         const val SOURCE = "disable01.jpg"
 
-        /** 骰子模板文件名。 */
-        const val DICE_FILE = "dice.png"
+        /** 帮助图标模板文件名。 */
+        const val HELP_ICON_FILE = "help.png"
 
         /** 第 [slot] 槽问号模板的文件名。 */
         fun questionFile(slot: Int) = "question_slot$slot.png"
