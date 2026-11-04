@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
 > 最后更新：2026-11-04
-> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步和第 3a、3b 步（自动校准；开关判断与 `ScreenState`）。下一步是第 3c 步（横纵分开缩放的模板、`Snapper`、`CalibrationProfile`、`ProfileVerifier`）。
-> 最新代码提交：`1c55b1f`
+> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步和第 3a、3b、3c 步（自动校准；开关判断与 `ScreenState`；手动吸附、位置档案与快速核验）。下一步是第 4 步（刷新状态机）。
+> 最新代码提交：`dd5041d`
 
 **新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
@@ -55,7 +55,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 - 已删除 `gradle/gradle-daemon-jvm.properties`（它要求下载 JDK 25，网络失败），并在 `gradle.properties` 中设置 `org.gradle.java.installations.auto-download=false`。`.gitignore` 也已忽略该文件。
 - 常用命令（PowerShell 5.1，不支持 `&&`，请用 `;`）：
   - 领域层单元测试：`.\gradlew.bat :core-domain:test --console=plain`，结果见 `core-domain\build\test-results\test\*.xml`
-  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`，结果见 `core-engine\build\test-results\test\*.xml`；阈值报告、模板可分性报告、锚点测量报告、校准报告（`calibration-report.txt`）和开关判断报告（`toggle-report.txt`）写入 `core-engine\build\reports\recognition\`（不提交）。`78a31ab` 时全量运行约 40 秒（校准合成测试约 22 秒）；`1c55b1f` 时约 1 分 30 秒（校准合成测试 42.7 秒，代码未改，原因未查，见第 8 节）
+  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`，结果见 `core-engine\build\test-results\test\*.xml`；阈值报告、模板可分性报告、锚点测量报告、校准报告（`calibration-report.txt`）和开关判断报告（`toggle-report.txt`）写入 `core-engine\build\reports\recognition\`（不提交）。快速核验报告（`verify-report.txt`）和吸附报告（`snap-report.txt`）也在同一目录。`dd5041d` 时全量运行约 1 分 12 秒，其中校准合成测试约 26 秒、吸附与档案测试约 25 秒
   - 重新裁取识别素材（平时自动跳过）：`.\gradlew.bat :core-engine:test --tests "*RecognitionAssetGenerator*" '-Pkaze.generateRecognitionAssets' --console=plain`。**`-P` 参数必须加单引号**，否则 PowerShell 会在点号处把它拆开，Gradle 报「Task '.generateRecognitionAssets' not found」（2026-11-02 实测）
 - Gradle Wrapper 已于 `7e193d5` 用 9.8.2 重新生成，恢复了分发包 SHA-256 校验（`distributionSha256Sum`）。升级 Gradle 时请用 `gradlew wrapper --gradle-distribution-sha256-sum` 一并更新校验和。
 - 构建会提示「Deprecated Gradle features ... incompatible with Gradle 10」，目前不影响使用，升级 Gradle 10 前用 `--warning-mode all` 排查。
@@ -65,7 +65,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 ## 4. Git 状态与提交约定
 
-- 最新代码提交为 `1c55b1f`；本文件每次更新单独以 `docs(status)` 提交。
+- 最新代码提交为 `dd5041d`；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
@@ -77,6 +77,8 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 | 提交 | 内容 |
 | --- | --- |
+| dd5041d | 模板支持横纵分开缩放；新增 `Snapper`、`CalibrationProfile`、`CalibrationProfileCodec`、`ProfileVerifier`；`SnapperProfileTest`。第 3c 步完成 |
+| a3e4898 | 同步第 3b 步完成情况（本文件） |
 | 1c55b1f | 新增开关判断 `ToggleDetector`、`ScreenState` 与 `ToggleState`、开关采样区常量；`ToggleDetectorTest`。第 3b 步完成 |
 | c4da372 | 同步第 3a 步完成情况与文档提交约定（本文件） |
 | 78a31ab | 识别器接入校准（`FactorRecognizer` 接收 `Calibration`，新增 `RecognizerFactory`）；校准新增槽位验证；问号模板改从 `assets/recognition/` 读取。第 3a 步完成 |
@@ -241,13 +243,17 @@ vision/
   Calibration.kt        scaleX、scaleY、originX、originY；参考坐标 ↔ 屏幕坐标换算（像素边界）
   Calibrator.kt         自动校准入口：帮助图标粗定位（多候选）→ PanelEdgeRefiner 面板边框精修 → 残差检查 → 槽位验证
   PanelEdgeRefiner.kt   面板边框精修：横向亮度剖面 → 梯度 + 抛物线插值找边 → 最小二乘拟合 scale 和 originX → 纵向找边 → originY
-  RecognizerFactory.kt  按 Calibration 的缩放生成 TemplateBank + 问号模板 + SlotMatcher + FactorRecognizer，模板按缩放缓存
-  TemplateBank.kt       图标 → 槽位大小的掩膜模板（alpha ≥ 200）；尺寸系数覆盖表；按槽位剪枝候选
+  Snapper.kt            手动吸附：用户粗框 → 竖边搜索 → 横边搜索 → 联合精修 → 逐边检查，得到横纵可以不等的 Calibration
+  CalibrationProfile.kt 位置档案：截图尺寸 + Calibration + 点击位置 + 开关参照块 + 来源与时间戳，纯数据
+  CalibrationProfileCodec.kt 档案与文本互转，PNG 编解码由调用方传入（手机用 Bitmap，测试用 ImageIO）
+  ProfileVerifier.kt    快速核验：开关参照块距离 ≤ 15 通过；不通过时检查是否全问号（开关关 / 核验失败）
+  RecognizerFactory.kt  按 Calibration 的横纵缩放生成 TemplateBank + 问号模板 + SlotMatcher + FactorRecognizer，模板按缩放缓存
+  TemplateBank.kt       图标 → 槽位大小的掩膜模板（alpha ≥ 200），横纵缩放可以不同；尺寸系数覆盖表；按槽位剪枝候选
   SlotMatcher.kt        MatchThresholds；问号比较 → 粗搜 ±2 → 前 3 名精修 ±3 → 差距不足时二次比较
   FactorRecognizer.kt   一帧 → FrameResult；通过 Calibration 换算搜索区域，不再限制画面尺寸
 ```
 
-尚未实现：`Snapper`、`CalibrationProfile`、`ProfileVerifier`（第 3c 步）；`loop/` 下的接口与状态机（第 4 步）。
+尚未实现：`loop/` 下的接口与状态机（第 4 步）。
 
 测试（`core-engine/src/test/kotlin/.../engine/`）：
 
@@ -259,10 +265,11 @@ vision/
 - `vision/AnchorSurveyTest`(1)：锚点测量，只出报告。
 - `vision/CalibrationTest`(10)：`Calibration` 换算规则（scale = 1 / 0.5 / 1.25 / 1.33 / 横纵不等 / 反算 / 非法参数 / 面板边缘 / 帮助图标改名）。
 - `vision/CalibrationSyntheticTest`(1)：47 张原始截图 + 4 组合成图（0.5 / 0.75 / 1.25 / 1.33 倍），验收 ①②③④（详见下文第 8 节）。
+- `vision/SnapperProfileTest`(11)：吸附（验收 ①②）、快速核验（③）、档案序列化（④）、横纵缩放模板一致性、横向拉伸截图识别等。报告 `snap-report.txt`、`verify-report.txt`。
 - `vision/ToggleDetectorTest`(8)：47 张截图开关判断与画面状态；4 种缩放的合成图抽查；采样区出画面、纯色画面、阈值边界、绿色像素判断、非法阈值、`ScreenState.classify` 判定表。报告 `toggle-report.txt`。
 - `vision/RecognitionAssetGenerator`(1)：素材生成工具，平时跳过，用法见第 3 节。
 
-2026-11-04 最后一次全量运行（`1c55b1f` 的代码，提交前运行）：25 个通过，1 个跳过（素材生成器），0 failures / 0 errors，构建耗时 1 分 30 秒。其中 `CalibrationSyntheticTest` 耗时 42.7 秒（`78a31ab` 时为 22.7 秒）。`app` 模块的代码没有改动，`78a31ab` 之后未运行 `assembleDebug`。
+2026-11-04 最后一次全量运行（`dd5041d` 的代码，提交前运行）：36 个通过，1 个跳过（素材生成器），0 failures / 0 errors，构建耗时 1 分 12 秒。其中 `CalibrationSyntheticTest` 26.3 秒，`SnapperProfileTest` 24.7 秒。`app` 模块的代码没有改动，`78a31ab` 之后未运行 `assembleDebug`。
 
 ---
 
@@ -312,6 +319,24 @@ vision/
 
 架构方案第 3.3 节写着「两个阈值是初值，第 3 步在 Kotlin 测试中按 47 张截图实测确认」，实测结果（0% / 100%）**尚未回写架构方案**，第 3.3 节归架构军师维护。
 
+已完成（2026-11-04）：架构方案第 9 节第 3c 步（`dd5041d`），手动吸附、位置档案与快速核验：
+- `TemplateBank`、`SlotMatcher`、`RecognizerFactory` 支持横纵分开缩放，原来的 TODO 已去掉。只给一个缩放时两者相等；`ScreenshotAnswerTest`、`CalibrationSyntheticTest` 照旧通过。
+- `Snapper` 按架构方案第 3.4.4 节的 4 步实现。搜索参数用「轮廓左沿、上沿的屏幕位置」代替 `origin`，换缩放时轮廓不会整体漂走。第 1~3 步每隔 1 个参考像素采样一次（架构方案没有规定采样密度，这是主力开发自定的），第 4 步逐边检查逐像素采样。
+- `ProfileVerifier` 返回 `Pass` / `ToggleOff` / `Fail`。截图尺寸与档案不符时直接 `Fail`。架构方案第 3.4.5 节第 2 条「通过后第一帧 4 个槽位都不能是 `Unknown`」**没有放在这里**，打算由第 4 步状态机在拿到第一帧时检查，避免同一帧识别两次。
+- `CalibrationProfileCodec` **不在架构方案的类清单里**，是主力开发为了在电脑上测验收 ④ 加的：文本格式带版本号，参照块按 PNG + Base64 保存（第 3.4.1 节），PNG 编解码由调用方传入。文本损坏时返回 null，按「没有档案」处理。是否该挪到 app 待架构军师判断。
+
+第 3c 步验收（`SnapperProfileTest`，11 个测试全部通过）：
+
+| 验收 | 条件 | 结果 |
+| --- | --- | --- |
+| ① 吸附 | 4 张截图 × 7 种合成条件（原始、k = 1 JPEG 85、k = 0.75 JPEG 85、k = 1.25 黑边、kx = 1.1 / 0.9 / 1.2 且 ky = 1）× 用户框误差 0 / ±15 / ±30 px，共 140 次 | 通过 136 次，槽位误差最大 1.27 px；拒收 4 次，**没有「通过却给错坐标」的情况** |
+| ② 偏一个槽位 | 4 张截图，初值左右各偏 163 px | 8 次全部被逐边检查拦下 |
+| ③ 快速核验 | 以 enable01 的开关为参照块，47 张截图 | 开关开 40 张距离 0.00，全部 `Pass`；开关关 7 张距离 40.89，全部 `ToggleOff` |
+| ④ 序列化 | 横纵不等、带小数的换算 + 3×2 参照块；真实截图的参照块 | 读回后逐字段、逐像素相同，换算结果不变；8 种损坏文本都读回为 null |
+| 补充 | 横向拉伸 0.9 / 1.1 / 1.2 倍后按吸附结果识别 4 张截图 | 全部与 `labels.csv` 一致 |
+
+拒收的 4 次都是「k = 0.75、JPEG 85、e = +30」：用户框比真值小 60 px，缩放 0.75 时宽度只有真值约 87%，这时 scaleX 初值偏 −13%，超出第 1 步 ±12% 的搜索范围，吸附到错误位置后被逐边检查拦下（最差边 0.000）。测试设计为「拒收只记入汇总、不算失败」，因为拒收只会让用户重新对准。实验 11 在 k = 0.75 时用的用户框误差是 ±15 px，±30 px 的这一组超出了实验覆盖的范围。
+
 合成分辨率下的识别阈值余量（架构方案第 2 步遗留的复测项，**尚未回写架构方案第 3.2 节**，第 3.2 节归架构军师维护）：
 
 | 指标 | 阈值 | scale = 1 最差 | 合成图最差 |
@@ -326,17 +351,18 @@ vision/
 
    - [x] 第 3a 步：自动校准（见上文）。
    - [x] 第 3b 步：开关判断与 `ScreenState`（见上文）。
-   - [ ] **下一项**：第 3c 步，`Calibration` 横纵分开缩放的模板支持、`Snapper`、`CalibrationProfile`、`ProfileVerifier`（架构方案第 3.4 节），验收见架构方案第 9 节第 3c 行。提交信息建议 `feat(engine): 新增手动吸附与位置档案快速核验`。
-   - [ ] 第 4 步：刷新状态机。
+   - [x] 第 3c 步：手动吸附、位置档案与快速核验（见上文）。
+   - [ ] **下一项**：第 4 步，`Decision`、`RefreshEngine`、`EngineState` 和 `loop/` 下的接口，用假截图器和假点击器测试，验收见架构方案第 9 节第 4 行。顺带要做的：把「校准 + 开关 + 槽位识别」组合起来；快速核验通过后检查第一帧 4 个槽位不是 `Unknown`。提交信息建议 `feat(engine): 实现刷新状态机与决策逻辑`。
 
    动手前注意：
    - **槽位验证还没有被测试真正触发过**。合成测试里所有假帮助图标都在「预测边落在画面外」或「残差超标」这一步就被拒了，`Calibrator.verifySlots` 这道防线写好了但没拦下过任何东西。要验证它，需要构造「假锚点的预测边都在画面内」的合成图（例如上下加很宽的黑边），或等补拍非因子界面截图。可交给测试质检补。
    - 帮助图标粗定位的距离分布：3 个真帮助图标始终排前 3，距离 ≤ 15.25；其他位置 ≥ 47。架构方案第 3.3 节「帮助图标距离明显过大时提前放弃」的阈值可以放在 20~40 之间，具体值等非因子界面截图补拍后再定。
    - 第 3.1 节第 2 段纵向剖面的取样列 x 1083..1086 等，架构方案明确要求**按原样实现，不要改**（已按原样实现）。
-   - 第 3c 步时横纵缩放可以不等，`TemplateBank` 和 `RecognizerFactory` 目前只取 `scaleX`，代码里有 TODO。
+   - 第 3.2 节的识别阈值只在等比缩放下复测过。横向拉伸时只验证了 4 张截图能正确识别，没有出阈值报告。
+   - `Snapper` 在 PC 上每次约 0.1 秒（140 次吸附共约 15 秒，含合成图生成），手机上的速度没测。
    - `Calibrator` 在 PC 上每帧约 0.3 秒（整屏粗定位占大头），手机上的速度还没测。校准只在开始时做一次。
    - T_anchor 和开关判断的「介于两者之间」区间（10%~50%，判为 `NOT_FACTOR_SCREEN`），需要非因子界面截图才能验证，这批截图还没补拍（架构方案第 10 节第 2、7 条）。现有 47 张只有 0% 和 100% 两种占比。
-   - `CalibrationSyntheticTest` 在 `1c55b1f` 这次运行耗时 42.7 秒，`78a31ab` 时为 22.7 秒。第 3b 步没有改校准代码，可能是运行时机器负载不同，原因未查。如果之后一直这么慢再排查。
+   - `CalibrationSyntheticTest` 在 `1c55b1f` 那次运行耗时 42.7 秒，`dd5041d` 这次回到 26.3 秒（`78a31ab` 时 22.7 秒），之前的变慢应是机器负载造成的，不再跟进。
    - 架构方案第 1.2 节与第 3.2 节的两处旧说法已由架构军师在 `eb0fa6e` 修正。
 
    架构方案第 10 节事项已确认（2026-10-31）：
