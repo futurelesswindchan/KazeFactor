@@ -32,13 +32,9 @@ data class HelpIconEstimate(val scale: Double, val x: Int, val y: Int, val dista
 /**
  * 自动校准：帮助图标粗定位 + 面板边框精修，得到 [Calibration]（架构方案第 3.1 节）。
  *
- * 目前只实现了第 1 段 [locateHelpIcon]。
- * TODO(第 3a 步): 第 2 段面板边框精修、残差检查与槽位验证。
- *
  * ```
  * val calibrator = Calibrator(helpIconTemplate)
- * val candidates = calibrator.locateHelpIcon(screenshot)
- * // 按距离升序依次交给第 2 段，取第一个通过残差检查和槽位验证的结果
+ * val result = calibrator.calibrate(screenshot) // 成功返回 Calibration，失败返回 null
  * ```
  *
  * NOTE: 本类不可变，可在多个协程间共享。
@@ -48,12 +44,43 @@ data class HelpIconEstimate(val scale: Double, val x: Int, val y: Int, val dista
  */
 class Calibrator(private val helpIconTemplate: ArgbImage) {
 
+    private val refiner = PanelEdgeRefiner()
+
     init {
         val r = ReferenceLayout.HELP_ICON_RECT
         require(helpIconTemplate.width == r.width && helpIconTemplate.height == r.height) {
             "帮助图标模板应为 ${r.width}x${r.height}，实际 ${helpIconTemplate.width}x${helpIconTemplate.height}"
         }
     }
+
+    /**
+     * 完整校准：帮助图标粗定位 → 面板边框精修 → 残差检查。
+     *
+     * TODO(第 3a 步): 槽位验证。精修通过后按结果裁出 4 个槽位，每个都要像问号或能匹配到因子，
+     * 需要先让 `TemplateBank` 和问号模板支持 scale ≠ 1。
+     *
+     * @param frame 完整截图
+     * @return 通过残差检查的换算；没有任何候选通过时返回 null，调用方应换下一帧重试（最多 3 帧）
+     */
+    fun calibrate(frame: ArgbImage): Calibration? =
+        refineCandidates(frame, locateHelpIcon(frame))?.calibration
+
+    /**
+     * 按顺序对 [candidates] 做面板边框精修，返回第一个两向残差都 ≤ [PanelEdgeRefiner.MAX_RESIDUAL] 的结果。
+     *
+     * 假锚点（「周挑战」标题旁和手枪图标旁的帮助图标）周围没有面板竖条，精修会找不到边或残差超标，
+     * 所以不会把假锚点当成真的（架构方案第 3.1 节第 1 段第 5 条）。
+     *
+     * 单独公开是为了让测试复用同一批粗定位结果，避免整屏搜索跑两遍。
+     *
+     * @param frame 完整截图，须与生成 [candidates] 的是同一帧
+     * @param candidates [locateHelpIcon] 的结果，按距离升序
+     * @return 通过残差检查的精修结果；全部不通过时返回 null
+     */
+    fun refineCandidates(frame: ArgbImage, candidates: List<HelpIconEstimate>): PanelEdgeRefiner.RefineResult? =
+        candidates.asSequence()
+            .mapNotNull { refiner.refine(frame, it) }
+            .firstOrNull { it.passesResidualCheck }
 
     /**
      * 在整帧画面里找帮助图标，返回按距离升序的多个候选。
