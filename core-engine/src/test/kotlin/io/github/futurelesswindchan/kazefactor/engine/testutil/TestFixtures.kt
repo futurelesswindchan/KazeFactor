@@ -43,7 +43,7 @@ object TestFixtures {
 
     private val iconDir: File by lazy { File(requireProperty("kaze.iconDir")) }
 
-    /** scale = 1、默认尺寸系数的模板库。 */
+    /** scale = 1、默认尺寸系数的模板库（横纵相同）。 */
     val templateBank: TemplateBank by lazy { TemplateBank(database, ::loadIcon) }
 
     /**
@@ -59,7 +59,7 @@ object TestFixtures {
     }
 
     /**
-     * 第 1~4 槽的问号掩膜模板（scale = 1），由 [questionImages] 直接包装，与之前从截图现场裁取等价。
+     * 第 1~4 槽的问号掩膜模板（scale = 1，横纵相同），由 [questionImages] 直接包装。
      *
      * NOTE: 保留此属性是为了让已有的 `newMatcher()` 和不涉及校准的测试不需要改动。
      */

@@ -83,9 +83,12 @@ class TemplateSeparabilityTest {
 
     /** 模板贴到 [background] 色的搜索区域正中（偏移 0）。 */
     private fun synthesize(template: ArgbImage, background: Int): ArgbImage {
-        val size = matcher.regionSize
-        val margin = (size - template.width) / 2
-        return ImageOps.drawOver(ArgbImage.filled(size, size, background), template, margin, margin)
+        val width = matcher.regionWidth
+        val height = matcher.regionHeight
+        return ImageOps.drawOver(
+            ArgbImage.filled(width, height, background), template,
+            (width - template.width) / 2, (height - template.height) / 2
+        )
     }
 
     /** 同一槽位内出现过的每一对模板，在共同不透明像素上的平均通道差。 */

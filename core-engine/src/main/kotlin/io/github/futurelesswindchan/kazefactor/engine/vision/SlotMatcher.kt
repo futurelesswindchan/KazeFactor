@@ -64,7 +64,7 @@ data class SlotAnalysis(
  * NOTE: 本类不可变，可在多个协程间共享。
  *
  * @param bank 因子模板库，提供每个槽位的候选
- * @param questionTemplates 第 1~4 槽的问号模板，边长必须等于 [TemplateBank.slotSize]
+ * @param questionTemplates 第 1~4 槽的问号模板，尺寸必须等于 [TemplateBank.slotWidth] × [TemplateBank.slotHeight]
  * @param thresholds 判定阈值
  */
 class SlotMatcher(
@@ -77,26 +77,29 @@ class SlotMatcher(
             "需要 ${ReferenceLayout.SLOT_COUNT} 个问号模板，实际 ${questionTemplates.size} 个"
         }
         questionTemplates.forEachIndexed { i, t ->
-            require(t.image.width == bank.slotSize && t.image.height == bank.slotSize) {
-                "第 ${i + 1} 槽问号模板尺寸 ${t.image.width}x${t.image.height} 与槽位 ${bank.slotSize} 不符"
+            require(t.image.width == bank.slotWidth && t.image.height == bank.slotHeight) {
+                "第 ${i + 1} 槽问号模板尺寸 ${t.image.width}x${t.image.height} 与槽位 ${bank.slotWidth}x${bank.slotHeight} 不符"
             }
         }
     }
 
-    /** 搜索区域的边长：槽位四边各多取 [ReferenceLayout.SEARCH_MARGIN]。 */
-    val regionSize: Int get() = bank.slotSize + 2 * MARGIN
+    /** 搜索区域的宽度：槽位左右各多取 [ReferenceLayout.SEARCH_MARGIN]。 */
+    val regionWidth: Int get() = bank.slotWidth + 2 * MARGIN
+
+    /** 搜索区域的高度：槽位上下各多取 [ReferenceLayout.SEARCH_MARGIN]。 */
+    val regionHeight: Int get() = bank.slotHeight + 2 * MARGIN
 
     /**
      * 识别一个槽位。
      *
-     * @param region 以槽位为中心、边长为 [regionSize] 的截图区域
+     * @param region 以槽位为中心、尺寸为 [regionWidth] × [regionHeight] 的截图区域
      * @param slotIndex 槽位序号，1~4
      * @param fullAnalysis 为 true 时即使判为问号也计算全部候选的距离（阈值报告用，较慢）
      * @throws IllegalArgumentException 区域尺寸不符或序号越界时
      */
     fun match(region: ArgbImage, slotIndex: Int, fullAnalysis: Boolean = false): SlotAnalysis {
-        require(region.width == regionSize && region.height == regionSize) {
-            "搜索区域应为 ${regionSize}x$regionSize，实际 ${region.width}x${region.height}"
+        require(region.width == regionWidth && region.height == regionHeight) {
+            "搜索区域应为 ${regionWidth}x$regionHeight，实际 ${region.width}x${region.height}"
         }
         val questionDistance = bestOffset(questionTemplates[slotIndex - 1], region, FINE_OFFSETS).first
         val isQuestion = questionDistance < thresholds.questionMaxDistance

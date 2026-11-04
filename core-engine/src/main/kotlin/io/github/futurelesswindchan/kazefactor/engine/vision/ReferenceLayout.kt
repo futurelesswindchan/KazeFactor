@@ -149,4 +149,36 @@ object ReferenceLayout {
      * 判断方法是统计该区域内「G 比 R、B 都大 40 以上」的绿色像素占比。
      */
     val TOGGLE_SAMPLE_RECT = PixelRect(1320, 600, 36, 21)
+
+    // ---- 吸附算法（架构方案第 3.4.4 节）----
+    // 槽位外框的精确坐标（像素边界），实验 11 第 1 轮修正后的值。
+    // 方框四角有约 5 px 的倒角，竖边有效范围 y 244..344，横边在 (左沿+9)..(右沿−9)。
+
+    /**
+     * 4 个槽位外框的 8 条竖边（左沿升、右沿降），吸附时搜索 scaleX 和 originX。
+     *
+     * 第 0 节和实验 8 里的 1081/1185 等是倒角处（y 236..243）的位置，不是竖边本身。
+     */
+    val SLOT_FRAME_VERTICAL_EDGES: List<ReferenceEdge> = listOf(
+        ReferenceEdge(1076, EdgePolarity.RISING),  ReferenceEdge(1190, EdgePolarity.FALLING),
+        ReferenceEdge(1239, EdgePolarity.RISING),  ReferenceEdge(1353, EdgePolarity.FALLING),
+        ReferenceEdge(1402, EdgePolarity.RISING),  ReferenceEdge(1516, EdgePolarity.FALLING),
+        ReferenceEdge(1565, EdgePolarity.RISING),  ReferenceEdge(1680, EdgePolarity.FALLING)
+    )
+
+    /** 竖边的有效纵向范围（避开四角倒角）。 */
+    val SLOT_FRAME_VERTICAL_VALID_Y: IntRange = 244..344
+
+    /**
+     * 槽位外框上沿（由暗变亮），吸附时用于求 scaleY 和 originY。
+     *
+     * 4 个方框共用这一行，吸附时按每个方框单独采样，算作 4 条边。
+     */
+    const val SLOT_FRAME_TOP_Y = 236
+
+    /** 槽位外框下沿（由亮变暗），用法同 [SLOT_FRAME_TOP_Y]。 */
+    const val SLOT_FRAME_BOTTOM_Y = 350
+
+    /** 横边避开倒角：每个方框内左右各缩进 9 px。 */
+    const val SLOT_FRAME_HORIZONTAL_INSET = 9
 }

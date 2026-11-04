@@ -7,7 +7,7 @@ import io.github.futurelesswindchan.kazefactor.engine.image.ImageOps
  * 把一帧画面识别成 4 个槽位的结果。
  *
  * 通过 [calibration] 把参考坐标换算成屏幕坐标后裁取槽位，不再限制画面必须是 2388×1080。
- * 搜索区域以换算后的槽位左上角为准，裁固定的 [SlotMatcher.regionSize] 见方，
+ * 搜索区域以换算后的槽位左上角为准，裁固定的 [SlotMatcher.regionWidth] × [SlotMatcher.regionHeight]，
  * 避免因 [Calibration.toScreenRect] 的取整差（±1 px）导致区域尺寸不一致。
  *
  * ```
@@ -16,7 +16,7 @@ import io.github.futurelesswindchan.kazefactor.engine.image.ImageOps
  * result.factorIdsOrNull() // 例如 [3, 12, 40, 51]
  * ```
  *
- * @param matcher 单槽匹配器，其 [SlotMatcher.regionSize] 决定搜索区域的边长
+ * @param matcher 单槽匹配器，其 [SlotMatcher.regionWidth]、[SlotMatcher.regionHeight] 决定搜索区域的尺寸
  * @param calibration 参考坐标到当前屏幕的换算；不校准时传 [Calibration.IDENTITY]
  */
 class FactorRecognizer(
@@ -52,16 +52,16 @@ class FactorRecognizer(
         }
 
     /**
-     * 第 [slotIndex] 槽的搜索区域：以校准后的槽位左上角为准，裁固定边长。
+     * 第 [slotIndex] 槽的搜索区域：以校准后的槽位左上角为准，裁固定尺寸。
      *
-     * 边长等于 [SlotMatcher.regionSize]（= 槽位边长 + 2 × [ReferenceLayout.SEARCH_MARGIN]），
+     * 尺寸等于 [SlotMatcher.regionWidth] × [SlotMatcher.regionHeight]
+     * （= 槽位宽高 + 2 × [ReferenceLayout.SEARCH_MARGIN]），
      * 左上角从换算后的槽位左上角各减 [ReferenceLayout.SEARCH_MARGIN]。
      */
     fun searchRect(slotIndex: Int): PixelRect {
         val refSlot = ReferenceLayout.slotRect(slotIndex)
         val screenSlot = calibration.toScreenRect(refSlot)
         val margin = ReferenceLayout.SEARCH_MARGIN
-        val size = matcher.regionSize
-        return PixelRect(screenSlot.x - margin, screenSlot.y - margin, size, size)
+        return PixelRect(screenSlot.x - margin, screenSlot.y - margin, matcher.regionWidth, matcher.regionHeight)
     }
 }

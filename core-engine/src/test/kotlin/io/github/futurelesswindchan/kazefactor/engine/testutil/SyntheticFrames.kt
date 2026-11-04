@@ -30,9 +30,18 @@ object SyntheticFrames {
      * @param padX 左右黑边宽度（两侧相同）
      * @param padY 上下黑边高度（两侧相同）
      */
-    fun scaleWithBorder(frame: ArgbImage, scale: Double, padX: Int = 0, padY: Int = 0): SyntheticFrame {
-        val w = (frame.width * scale).roundToInt()
-        val h = (frame.height * scale).roundToInt()
+    fun scaleWithBorder(frame: ArgbImage, scale: Double, padX: Int = 0, padY: Int = 0): SyntheticFrame =
+        scaleWithBorderXY(frame, scale, scale, padX, padY)
+
+    /**
+     * 同 [scaleWithBorder]，但横纵分开缩放，模拟面板被横向拉伸（架构方案第 3.4 节，调研报告实验 11）。
+     *
+     * @param scaleX 横向缩放
+     * @param scaleY 纵向缩放
+     */
+    fun scaleWithBorderXY(frame: ArgbImage, scaleX: Double, scaleY: Double, padX: Int = 0, padY: Int = 0): SyntheticFrame {
+        val w = (frame.width * scaleX).roundToInt()
+        val h = (frame.height * scaleY).roundToInt()
         val resized = ImageOps.resizeAreaAverage(frame, w, h)
         val canvas = ArgbImage.filled(w + 2 * padX, h + 2 * padY, BLACK)
         val image = ImageOps.drawOver(canvas, resized, padX, padY)

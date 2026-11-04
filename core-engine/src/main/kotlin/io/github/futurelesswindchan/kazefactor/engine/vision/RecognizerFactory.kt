@@ -17,8 +17,7 @@ import io.github.futurelesswindchan.kazefactor.engine.image.ImageOps
  * val recognizer = factory.create(calibration)
  * ```
  *
- * NOTE: 模板只支持横纵相同的缩放，取 [Calibration.scaleX]。
- * TODO(第 3c 步): 手动吸附得到的横纵不等的缩放，需要 `TemplateBank` 按两个方向分别缩放。
+ * 横纵缩放可以不同（手动吸附的结果），模板库和问号模板都按 [Calibration.scaleX]、[Calibration.scaleY] 分别缩放。
  *
  * @param database 因子数据库
  * @param iconLoader 按因子读取图标原图（`assets/factors/icons/`），构造时对每个因子调用一次
@@ -45,32 +44,39 @@ class RecognizerFactory(
 
     private val icons: Map<Int, ArgbImage> = database.factors.associate { it.id to iconLoader(it) }
 
+    /** 最近一次生成的匹配器及其横纵缩放。 */
+    private class CachedMatcher(val scaleX: Double, val scaleY: Double, val matcher: SlotMatcher)
+
     /**
-     * 最近一次生成的匹配器及其缩放。整体替换，不加锁：并发时最多重复生成一次，
+     * 最近一次生成的匹配器。整体替换，不加锁：并发时最多重复生成一次，
      * 生成结果只取决于缩放，所以谁覆盖谁都一样。
      */
     @Volatile
-    private var cached: Pair<Double, SlotMatcher>? = null
+    private var cached: CachedMatcher? = null
 
-    /** 按 [calibration] 的缩放生成匹配器，组装成识别器。 */
+    /** 按 [calibration] 的横纵缩放生成匹配器，组装成识别器。 */
     fun create(calibration: Calibration): FactorRecognizer =
-        FactorRecognizer(matcherFor(calibration.scaleX), calibration)
+        FactorRecognizer(matcherFor(calibration.scaleX, calibration.scaleY), calibration)
 
-    /** 按 [scale] 生成匹配器；与上一次缩放相同时直接复用。 */
-    fun matcherFor(scale: Double): SlotMatcher {
-        cached?.let { (s, m) -> if (s == scale) return m }
-        val bank = TemplateBank(database, { icons.getValue(it.id) }, scale)
-        val questions = questionImages.map { renderQuestionTemplate(it, bank.slotSize) }
-        return SlotMatcher(bank, questions, thresholds).also { cached = scale to it }
+    /**
+     * 按 ([scaleX], [scaleY]) 生成匹配器；与上一次缩放相同时直接复用。
+     *
+     * @param scaleY 纵向缩放，默认与 [scaleX] 相同
+     */
+    fun matcherFor(scaleX: Double, scaleY: Double = scaleX): SlotMatcher {
+        cached?.let { if (it.scaleX == scaleX && it.scaleY == scaleY) return it.matcher }
+        val bank = TemplateBank(database, { icons.getValue(it.id) }, scaleX, scaleY)
+        val questions = questionImages.map { renderQuestionTemplate(it, bank.slotWidth, bank.slotHeight) }
+        return SlotMatcher(bank, questions, thresholds).also { cached = CachedMatcher(scaleX, scaleY, it) }
     }
 
     companion object {
         /**
-         * 问号原图（参考截图上裁出的 90×90 槽位）缩放到 [slotSize] 见方，作为该缩放下的问号模板。
+         * 问号原图（参考截图上裁出的 90×90 槽位）缩放到 `slotWidth × slotHeight`，作为该缩放下的问号模板。
          *
          * 问号原图整张不透明，缩放后掩膜就是整个槽位。
          */
-        fun renderQuestionTemplate(raw: ArgbImage, slotSize: Int): MaskedTemplate =
-            MaskedTemplate(ImageOps.resizeAreaAverage(raw, slotSize, slotSize))
+        fun renderQuestionTemplate(raw: ArgbImage, slotWidth: Int, slotHeight: Int): MaskedTemplate =
+            MaskedTemplate(ImageOps.resizeAreaAverage(raw, slotWidth, slotHeight))
     }
 }

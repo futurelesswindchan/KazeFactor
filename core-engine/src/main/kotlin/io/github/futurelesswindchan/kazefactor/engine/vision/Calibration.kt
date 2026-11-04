@@ -59,7 +59,7 @@ data class Calibration(
      *
      * NOTE: 换算后的边长可能和 `round(参考边长 × scale)` 差 1 px。例如 scale = 1.25 时
      * 90 px 的槽位可能变成 112 或 113 px，取决于槽位落在哪里。需要固定边长的调用方
-     * （如按 [TemplateBank.slotSize] 裁搜索区域）应自行以换算后的左上角为准取固定边长。
+     * （如按 [TemplateBank.slotWidth]、[TemplateBank.slotHeight] 裁搜索区域）应自行以换算后的左上角为准取固定边长。
      *
      * @param ref 参考坐标下的矩形
      * @return 屏幕坐标下的矩形；缩放极小时宽高可能为 0，由调用方的裁剪校验拦下
