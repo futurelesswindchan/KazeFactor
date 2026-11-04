@@ -136,4 +136,17 @@ object ReferenceLayout {
         require(slotIndex in 1..SLOT_COUNT) { "槽位序号必须在 1~4 之间：$slotIndex" }
         return PixelRect(SLOT_LEFTS[slotIndex - 1], SLOT_TOP, SLOT_SIZE, SLOT_SIZE)
     }
+
+    // ---- 开关检测（架构方案第 3.3 节）----
+
+    /**
+     * 开关采样区域在参考截图上的矩形：x 1320..1355, y 600..620。
+     *
+     * 开关打开时，滑轨左半段变成绿色。47 张截图中：
+     * - 开关关（7 张）：组平均色约 #424A5D
+     * - 开关开（40 张）：组平均色约 #4DB022
+     *
+     * 判断方法是统计该区域内「G 比 R、B 都大 40 以上」的绿色像素占比。
+     */
+    val TOGGLE_SAMPLE_RECT = PixelRect(1320, 600, 36, 21)
 }
