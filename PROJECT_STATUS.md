@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
 > 最后更新：2026-11-04
-> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步和第 3a 步（自动校准：帮助图标粗定位 + 面板边框精修 + 槽位验证，识别器接入校准）。下一步是第 3b 步（开关判断与 `ScreenState`）。
-> 最新代码提交：`78a31ab`
+> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步和第 3a、3b 步（自动校准；开关判断与 `ScreenState`）。下一步是第 3c 步（横纵分开缩放的模板、`Snapper`、`CalibrationProfile`、`ProfileVerifier`）。
+> 最新代码提交：`1c55b1f`
 
 **新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
@@ -55,7 +55,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 - 已删除 `gradle/gradle-daemon-jvm.properties`（它要求下载 JDK 25，网络失败），并在 `gradle.properties` 中设置 `org.gradle.java.installations.auto-download=false`。`.gitignore` 也已忽略该文件。
 - 常用命令（PowerShell 5.1，不支持 `&&`，请用 `;`）：
   - 领域层单元测试：`.\gradlew.bat :core-domain:test --console=plain`，结果见 `core-domain\build\test-results\test\*.xml`
-  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`，结果见 `core-engine\build\test-results\test\*.xml`；阈值报告、模板可分性报告、锚点测量报告和校准报告（`calibration-report.txt`）写入 `core-engine\build\reports\recognition\`（不提交）。全量运行约 40 秒，其中校准合成测试约 22 秒
+  - 识别层单元测试：`.\gradlew.bat :core-engine:test --console=plain`，结果见 `core-engine\build\test-results\test\*.xml`；阈值报告、模板可分性报告、锚点测量报告、校准报告（`calibration-report.txt`）和开关判断报告（`toggle-report.txt`）写入 `core-engine\build\reports\recognition\`（不提交）。`78a31ab` 时全量运行约 40 秒（校准合成测试约 22 秒）；`1c55b1f` 时约 1 分 30 秒（校准合成测试 42.7 秒，代码未改，原因未查，见第 8 节）
   - 重新裁取识别素材（平时自动跳过）：`.\gradlew.bat :core-engine:test --tests "*RecognitionAssetGenerator*" '-Pkaze.generateRecognitionAssets' --console=plain`。**`-P` 参数必须加单引号**，否则 PowerShell 会在点号处把它拆开，Gradle 报「Task '.generateRecognitionAssets' not found」（2026-11-02 实测）
 - Gradle Wrapper 已于 `7e193d5` 用 9.8.2 重新生成，恢复了分发包 SHA-256 校验（`distributionSha256Sum`）。升级 Gradle 时请用 `gradlew wrapper --gradle-distribution-sha256-sum` 一并更新校验和。
 - 构建会提示「Deprecated Gradle features ... incompatible with Gradle 10」，目前不影响使用，升级 Gradle 10 前用 `--warning-mode all` 排查。
@@ -65,7 +65,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 ## 4. Git 状态与提交约定
 
-- 最新代码提交为 `78a31ab`；本文件每次更新单独以 `docs(status)` 提交。
+- 最新代码提交为 `1c55b1f`；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
@@ -77,6 +77,8 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 | 提交 | 内容 |
 | --- | --- |
+| 1c55b1f | 新增开关判断 `ToggleDetector`、`ScreenState` 与 `ToggleState`、开关采样区常量；`ToggleDetectorTest`。第 3b 步完成 |
+| c4da372 | 同步第 3a 步完成情况与文档提交约定（本文件） |
 | 78a31ab | 识别器接入校准（`FactorRecognizer` 接收 `Calibration`，新增 `RecognizerFactory`）；校准新增槽位验证；问号模板改从 `assets/recognition/` 读取。第 3a 步完成 |
 | d73b2ed | 新增面板边框精修 `PanelEdgeRefiner` 与校准合成测试 |
 | f787450 | 帮助图标粗定位改为保留 5 个候选；「骰子」更名为帮助图标（`help.png`、`HELP_ICON_RECT`、`HelpIconEstimate`） |
@@ -230,9 +232,12 @@ image/
   ArgbImage.kt          width、height、pixels（0xAARRGGBB，行优先）；通道读取与像素差工具函数
   ImageOps.kt           crop、面积平均缩放（RGB 按 alpha 加权）、居中贴图、alpha 合成
 vision/
-  RecognitionModels.kt  SlotResult（Question / Factor / Ambiguous / Unknown）、FrameResult、PixelRect
+  RecognitionModels.kt  ScreenState（FACTOR_SCREEN_ON / FACTOR_SCREEN_OFF / NOT_FACTOR_SCREEN，classify 判定表）、
+                        ToggleState（ON / OFF / UNCERTAIN）、SlotResult（Question / Factor / Ambiguous / Unknown）、FrameResult、PixelRect
   ReferenceLayout.kt    EdgePolarity、ReferenceEdge；2388×1080 参考坐标：槽位、点击刷新位置 (1377, 433)、帮助图标 HELP_ICON_RECT、
-                        面板竖边 966/1006/1747/1789、横边 236/350/690、剖面取样行列范围、搜索边距 4 px
+                        面板竖边 966/1006/1747/1789、横边 236/350/690、剖面取样行列范围、搜索边距 4 px、
+                        开关采样区 TOGGLE_SAMPLE_RECT（x 1320..1355、y 600..620）
+  ToggleDetector.kt     开关判断：采样区内「G 比 R、B 都大 40 以上」的像素占比，> 50% 开、< 10% 关，其余或采样区出画面为 UNCERTAIN
   Calibration.kt        scaleX、scaleY、originX、originY；参考坐标 ↔ 屏幕坐标换算（像素边界）
   Calibrator.kt         自动校准入口：帮助图标粗定位（多候选）→ PanelEdgeRefiner 面板边框精修 → 残差检查 → 槽位验证
   PanelEdgeRefiner.kt   面板边框精修：横向亮度剖面 → 梯度 + 抛物线插值找边 → 最小二乘拟合 scale 和 originX → 纵向找边 → originY
@@ -242,7 +247,7 @@ vision/
   FactorRecognizer.kt   一帧 → FrameResult；通过 Calibration 换算搜索区域，不再限制画面尺寸
 ```
 
-尚未实现：开关判断与 `ScreenState`（第 3b 步）；`Snapper`、`CalibrationProfile`、`ProfileVerifier`（第 3c 步）；`loop/` 下的接口与状态机（第 4 步）。
+尚未实现：`Snapper`、`CalibrationProfile`、`ProfileVerifier`（第 3c 步）；`loop/` 下的接口与状态机（第 4 步）。
 
 测试（`core-engine/src/test/kotlin/.../engine/`）：
 
@@ -254,9 +259,10 @@ vision/
 - `vision/AnchorSurveyTest`(1)：锚点测量，只出报告。
 - `vision/CalibrationTest`(10)：`Calibration` 换算规则（scale = 1 / 0.5 / 1.25 / 1.33 / 横纵不等 / 反算 / 非法参数 / 面板边缘 / 帮助图标改名）。
 - `vision/CalibrationSyntheticTest`(1)：47 张原始截图 + 4 组合成图（0.5 / 0.75 / 1.25 / 1.33 倍），验收 ①②③④（详见下文第 8 节）。
+- `vision/ToggleDetectorTest`(8)：47 张截图开关判断与画面状态；4 种缩放的合成图抽查；采样区出画面、纯色画面、阈值边界、绿色像素判断、非法阈值、`ScreenState.classify` 判定表。报告 `toggle-report.txt`。
 - `vision/RecognitionAssetGenerator`(1)：素材生成工具，平时跳过，用法见第 3 节。
 
-2026-11-04 最后一次全量运行（`78a31ab`）：17 个通过，1 个跳过（素材生成器），0 failures / 0 errors，构建耗时 38 秒。其中 `CalibrationSyntheticTest` 耗时 22.7 秒（63 帧，每帧整屏粗定位 + 面板精修 + 槽位验证）。`app` 模块的代码没有改动，`78a31ab` 之后未运行 `assembleDebug`。
+2026-11-04 最后一次全量运行（`1c55b1f` 的代码，提交前运行）：25 个通过，1 个跳过（素材生成器），0 failures / 0 errors，构建耗时 1 分 30 秒。其中 `CalibrationSyntheticTest` 耗时 42.7 秒（`78a31ab` 时为 22.7 秒）。`app` 模块的代码没有改动，`78a31ab` 之后未运行 `assembleDebug`。
 
 ---
 
@@ -288,7 +294,23 @@ vision/
 | ② `s0` 误差分档 | 最大 −5.00%（缩放 0.5，图标宽 16.5 px，上限 6%） |
 | ③ `s0` 人为偏 ±8% | 要么拒收，要么槽位误差 ≤ 0.20 px，没有给出错误坐标 |
 | ④ 同屏 3 个帮助图标时选中真锚点 | 全部选对；缩放 0.5 时排第 1 的是手枪旁的假图标，被精修拒掉，最终用第 2 个候选 |
-| ⑤ 开关判断 | 属于第 3b 步，未做 |
+| ⑤ 开关判断 | 第 3b 步完成，见下文 |
+
+已完成（2026-11-04）：架构方案第 9 节第 3b 步（`1c55b1f`），开关判断与画面状态：
+- `ToggleDetector` 按架构方案第 3.3 节的规则和阈值初值实现，阈值没有改。
+- `ScreenState.classify(toggle, frame)`：开关开 → `FACTOR_SCREEN_ON`；开关关且 4 槽都是问号 → `FACTOR_SCREEN_OFF`；开关关但不全是问号、或开关不确定 → `NOT_FACTOR_SCREEN`。校准失败时调用方直接取 `NOT_FACTOR_SCREEN`。
+- 开关开但有槽位是问号时仍返回 `FACTOR_SCREEN_ON`，留给第 4 步的 `Decision` 按 UNCERTAIN 处理（架构方案第 3.3 节）。
+- 还没有把「校准 + 开关 + 槽位识别」串起来的总入口，架构方案没有规定这个类，打算在第 4 步状态机里组合。
+
+验收 ⑤（`ToggleDetectorTest`，报告 `core-engine/build/reports/recognition/toggle-report.txt`，用 `Calibration.IDENTITY`，不跑完整校准）：
+
+| 分组 | 绿色像素占比 | 结果 |
+| --- | --- | --- |
+| 开关关 7 张（`disable*`） | 全部 0.0%（阈值 < 10%） | 开关 OFF，画面 `FACTOR_SCREEN_OFF` |
+| 开关开 40 张（`enable*`） | 全部 100.0%（阈值 > 50%） | 开关 ON，画面 `FACTOR_SCREEN_ON` |
+| `disable01`、`enable01` × 缩放 0.5 / 0.75 / 1.25 / 1.33（加黑边，3 组 JPEG 重压缩） | — | 判断不变 |
+
+架构方案第 3.3 节写着「两个阈值是初值，第 3 步在 Kotlin 测试中按 47 张截图实测确认」，实测结果（0% / 100%）**尚未回写架构方案**，第 3.3 节归架构军师维护。
 
 合成分辨率下的识别阈值余量（架构方案第 2 步遗留的复测项，**尚未回写架构方案第 3.2 节**，第 3.2 节归架构军师维护）：
 
@@ -303,8 +325,8 @@ vision/
 1. 核心功能阶段：按 `docs/ARCHITECTURE_CORE_FEATURE.md` 第 9 节实现。**第 3 步已按架构修订拆成 3a / 3b / 3c**，以架构方案第 3.1、3.3、3.4 节和第 9 节的表为准。
 
    - [x] 第 3a 步：自动校准（见上文）。
-   - [ ] **下一项**：第 3b 步，开关判断与 `ScreenState`（架构方案第 3.3 节）。验收第 9 节第 3 步第 ⑤ 条：47 张截图开关判断全部正确。提交信息建议 `feat(engine): 新增挑战因子开关判断与画面状态`。
-   - [ ] 第 3c 步：`Calibration` 横纵分开缩放的模板支持、`Snapper`、`CalibrationProfile`、`ProfileVerifier`（架构方案第 3.4 节）。
+   - [x] 第 3b 步：开关判断与 `ScreenState`（见上文）。
+   - [ ] **下一项**：第 3c 步，`Calibration` 横纵分开缩放的模板支持、`Snapper`、`CalibrationProfile`、`ProfileVerifier`（架构方案第 3.4 节），验收见架构方案第 9 节第 3c 行。提交信息建议 `feat(engine): 新增手动吸附与位置档案快速核验`。
    - [ ] 第 4 步：刷新状态机。
 
    动手前注意：
@@ -313,14 +335,15 @@ vision/
    - 第 3.1 节第 2 段纵向剖面的取样列 x 1083..1086 等，架构方案明确要求**按原样实现，不要改**（已按原样实现）。
    - 第 3c 步时横纵缩放可以不等，`TemplateBank` 和 `RecognizerFactory` 目前只取 `scaleX`，代码里有 TODO。
    - `Calibrator` 在 PC 上每帧约 0.3 秒（整屏粗定位占大头），手机上的速度还没测。校准只在开始时做一次。
-   - T_anchor 和开关判断的「介于两者之间」区间，需要非因子界面截图才能验证，这批截图还没补拍（架构方案第 10 节第 2、7 条）。
+   - T_anchor 和开关判断的「介于两者之间」区间（10%~50%，判为 `NOT_FACTOR_SCREEN`），需要非因子界面截图才能验证，这批截图还没补拍（架构方案第 10 节第 2、7 条）。现有 47 张只有 0% 和 100% 两种占比。
+   - `CalibrationSyntheticTest` 在 `1c55b1f` 这次运行耗时 42.7 秒，`78a31ab` 时为 22.7 秒。第 3b 步没有改校准代码，可能是运行时机器负载不同，原因未查。如果之后一直这么慢再排查。
    - 架构方案第 1.2 节与第 3.2 节的两处旧说法已由架构军师在 `eb0fa6e` 修正。
 
    架构方案第 10 节事项已确认（2026-10-31）：
    - 第 1.5 节的默认值全部采用（N = 3、次数上限 = 期望 × 3 且至少 100、默认 3 次/秒、命中只震动）。
    - Android 8~10 设备暂不支持自动刷新，发布时在说明中注明。
    - 截图与识别素材同因子图标一样获准使用，不适用 GPL-3.0，已在 `ICON_LICENSE.txt` 注明。
-   - 尚缺：非因子界面截图 5~10 张（第 3b 步与槽位验证用），以及英文界面截图（如游戏支持切换语言）。
+   - 尚缺：非因子界面截图 5~10 张（开关判断中间区间、T_anchor 与槽位验证用），以及英文界面截图（如游戏支持切换语言）。
 2. 小型 UI 优化：主页面顶栏标题「KazeFactor - 配方管理」改用专有 Logo 资产。`assets/logo/` 下为 SVG，需转换为 VectorDrawable 放入 `res/drawable/` 后使用。
 3. 开源发布前收尾：更新 README（项目状态、功能完成情况；第 27 行工具链版本仍为 Gradle 9.6.0 + AGP 9.4.1，需改为 9.8.2 + 9.5.0；删除与「刷新没有动画」矛盾的「帧差检测」和「OpenCV 模板匹配」两条，改为「纯 Kotlin 模板匹配」；注明 Android 8~10 不支持自动刷新；注明图标与截图不适用 GPL-3.0），然后推送到 GitHub。
 
