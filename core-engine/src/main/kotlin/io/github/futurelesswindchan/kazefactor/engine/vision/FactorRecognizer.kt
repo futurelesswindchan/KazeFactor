@@ -6,24 +6,29 @@ import io.github.futurelesswindchan.kazefactor.engine.image.ImageOps
 /**
  * 把一帧画面识别成 4 个槽位的结果。
  *
- * 当前按参考截图的固定坐标裁取槽位（scale = 1，不做校准），只适用于 2388×1080 的画面。
- * TODO(第 9 节第 3 步): 接入 `Calibration`，按校准结果换算槽位坐标。
+ * 通过 [calibration] 把参考坐标换算成屏幕坐标后裁取槽位，不再限制画面必须是 2388×1080。
+ * 搜索区域以换算后的槽位左上角为准，裁固定的 [SlotMatcher.regionSize] 见方，
+ * 避免因 [Calibration.toScreenRect] 的取整差（±1 px）导致区域尺寸不一致。
  *
  * ```
- * val recognizer = FactorRecognizer(SlotMatcher(bank, questionTemplates))
+ * val recognizer = FactorRecognizer(matcher, calibration)
  * val result = recognizer.recognize(screenshot)
  * result.factorIdsOrNull() // 例如 [3, 12, 40, 51]
  * ```
  *
- * @param matcher 单槽匹配器
+ * @param matcher 单槽匹配器，其 [SlotMatcher.regionSize] 决定搜索区域的边长
+ * @param calibration 参考坐标到当前屏幕的换算；不校准时传 [Calibration.IDENTITY]
  */
-class FactorRecognizer(private val matcher: SlotMatcher) {
+class FactorRecognizer(
+    private val matcher: SlotMatcher,
+    private val calibration: Calibration = Calibration.IDENTITY
+) {
 
     /**
      * 识别整帧图像。
      *
-     * @param frame 完整截图，尺寸须为 [ReferenceLayout.WIDTH] × [ReferenceLayout.HEIGHT]
-     * @throws IllegalArgumentException 截图尺寸不符时
+     * @param frame 完整截图
+     * @throws IllegalArgumentException 搜索区域超出画面边界时
      */
     fun recognize(frame: ArgbImage): FrameResult = FrameResult(analyze(frame).map { it.result })
 
@@ -32,12 +37,8 @@ class FactorRecognizer(private val matcher: SlotMatcher) {
      *
      * @param fullAnalysis 为 true 时问号槽位也计算全部候选距离
      */
-    fun analyze(frame: ArgbImage, fullAnalysis: Boolean = false): List<SlotAnalysis> {
-        require(frame.width == ReferenceLayout.WIDTH && frame.height == ReferenceLayout.HEIGHT) {
-            "未校准时只支持 ${ReferenceLayout.WIDTH}x${ReferenceLayout.HEIGHT}，实际 ${frame.width}x${frame.height}"
-        }
-        return analyzeRegions(fullAnalysis) { rect -> ImageOps.crop(frame, rect.x, rect.y, rect.width, rect.height) }
-    }
+    fun analyze(frame: ArgbImage, fullAnalysis: Boolean = false): List<SlotAnalysis> =
+        analyzeRegions(fullAnalysis) { rect -> ImageOps.crop(frame, rect.x, rect.y, rect.width, rect.height) }
 
     /**
      * 只按需读取槽位区域的版本，供以后的 `Frame.crop()` 使用，避免整屏转成像素数组。
@@ -50,13 +51,17 @@ class FactorRecognizer(private val matcher: SlotMatcher) {
             matcher.match(cropper(searchRect(slot)), slot, fullAnalysis)
         }
 
-    companion object {
-        /**
-         * 第 [slotIndex] 槽的搜索区域：槽位矩形四边各外扩 [ReferenceLayout.SEARCH_MARGIN]。
-         *
-         * 区域边长等于 [SlotMatcher.regionSize]（scale = 1 时为 98）。
-         */
-        fun searchRect(slotIndex: Int): PixelRect =
-            ReferenceLayout.slotRect(slotIndex).expand(ReferenceLayout.SEARCH_MARGIN)
+    /**
+     * 第 [slotIndex] 槽的搜索区域：以校准后的槽位左上角为准，裁固定边长。
+     *
+     * 边长等于 [SlotMatcher.regionSize]（= 槽位边长 + 2 × [ReferenceLayout.SEARCH_MARGIN]），
+     * 左上角从换算后的槽位左上角各减 [ReferenceLayout.SEARCH_MARGIN]。
+     */
+    fun searchRect(slotIndex: Int): PixelRect {
+        val refSlot = ReferenceLayout.slotRect(slotIndex)
+        val screenSlot = calibration.toScreenRect(refSlot)
+        val margin = ReferenceLayout.SEARCH_MARGIN
+        val size = matcher.regionSize
+        return PixelRect(screenSlot.x - margin, screenSlot.y - margin, size, size)
     }
 }

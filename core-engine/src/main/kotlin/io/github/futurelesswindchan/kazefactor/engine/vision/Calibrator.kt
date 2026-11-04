@@ -30,19 +30,24 @@ data class HelpIconEstimate(val scale: Double, val x: Int, val y: Int, val dista
 }
 
 /**
- * 自动校准：帮助图标粗定位 + 面板边框精修，得到 [Calibration]（架构方案第 3.1 节）。
+ * 自动校准：帮助图标粗定位 + 面板边框精修 + 槽位验证，得到 [Calibration]（架构方案第 3.1 节）。
  *
  * ```
- * val calibrator = Calibrator(helpIconTemplate)
- * val result = calibrator.calibrate(screenshot) // 成功返回 Calibration，失败返回 null
+ * val calibrator = Calibrator(helpIconTemplate, recognizerFactory)
+ * val calibration = calibrator.calibrate(screenshot) ?: return // 失败时换下一帧重试，最多 3 帧
+ * val recognizer = recognizerFactory.create(calibration)       // 与槽位验证用的是同一份缓存模板
  * ```
  *
- * NOTE: 本类不可变，可在多个协程间共享。
+ * NOTE: 本类自身不可变，可在多个协程间共享；[recognizerFactory] 的模板缓存并发访问时最多重复生成一次，结果不受影响。
  *
  * @param helpIconTemplate 帮助图标模板 `assets/recognition/help.png`，尺寸须与 [ReferenceLayout.HELP_ICON_RECT] 一致
+ * @param recognizerFactory 槽位验证用，按精修得到的缩放生成识别器
  * @throws IllegalArgumentException 模板尺寸不符时
  */
-class Calibrator(private val helpIconTemplate: ArgbImage) {
+class Calibrator(
+    private val helpIconTemplate: ArgbImage,
+    private val recognizerFactory: RecognizerFactory
+) {
 
     private val refiner = PanelEdgeRefiner()
 
@@ -54,33 +59,54 @@ class Calibrator(private val helpIconTemplate: ArgbImage) {
     }
 
     /**
-     * 完整校准：帮助图标粗定位 → 面板边框精修 → 残差检查。
-     *
-     * TODO(第 3a 步): 槽位验证。精修通过后按结果裁出 4 个槽位，每个都要像问号或能匹配到因子，
-     * 需要先让 `TemplateBank` 和问号模板支持 scale ≠ 1。
+     * 完整校准：帮助图标粗定位 → 面板边框精修 → 残差检查 → 槽位验证。
      *
      * @param frame 完整截图
-     * @return 通过残差检查的换算；没有任何候选通过时返回 null，调用方应换下一帧重试（最多 3 帧）
+     * @return 全部检查通过的换算；没有任何候选通过时返回 null，调用方应换下一帧重试（最多 3 帧）
      */
     fun calibrate(frame: ArgbImage): Calibration? =
         refineCandidates(frame, locateHelpIcon(frame))?.calibration
 
     /**
-     * 按顺序对 [candidates] 做面板边框精修，返回第一个两向残差都 ≤ [PanelEdgeRefiner.MAX_RESIDUAL] 的结果。
+     * 按顺序对 [candidates] 做面板边框精修，返回第一个通过残差检查和槽位验证的结果。
      *
-     * 假锚点（「周挑战」标题旁和手枪图标旁的帮助图标）周围没有面板竖条，精修会找不到边或残差超标，
-     * 所以不会把假锚点当成真的（架构方案第 3.1 节第 1 段第 5 条）。
+     * 两道检查（架构方案第 3.1 节第 1 段第 5 条、「验证与重试」第 1 条）：
+     * 1. 残差：两向最大残差 ≤ [PanelEdgeRefiner.MAX_RESIDUAL]。假锚点周围通常没有面板竖条，
+     *    精修会找不到边或残差超标。
+     * 2. 槽位验证：见 [verifySlots]。假锚点的预测边恰好都落在画面内、残差又碰巧达标时，由这一道拦下。
      *
      * 单独公开是为了让测试复用同一批粗定位结果，避免整屏搜索跑两遍。
      *
      * @param frame 完整截图，须与生成 [candidates] 的是同一帧
      * @param candidates [locateHelpIcon] 的结果，按距离升序
-     * @return 通过残差检查的精修结果；全部不通过时返回 null
+     * @return 两道检查都通过的精修结果；全部不通过时返回 null
      */
     fun refineCandidates(frame: ArgbImage, candidates: List<HelpIconEstimate>): PanelEdgeRefiner.RefineResult? =
         candidates.asSequence()
             .mapNotNull { refiner.refine(frame, it) }
-            .firstOrNull { it.passesResidualCheck }
+            .filter { it.passesResidualCheck }
+            .firstOrNull { verifySlots(frame, it.calibration) }
+
+    /**
+     * 槽位验证：按 [calibration] 裁出 4 个槽位，每个都必须像问号或能匹配到因子。
+     *
+     * [SlotResult.Ambiguous] 也算通过：它说明槽位里确实是因子图标，只是几个候选分不开，
+     * 与位置是否正确无关。[SlotResult.Unknown] 或搜索区域超出画面时不通过。
+     *
+     * NOTE: 匹配阈值是在 scale = 1 下实测的（架构方案第 3.2 节）。其他缩放下的余量要看
+     * `CalibrationSyntheticTest` 的报告，阈值偏紧时这一步会把正确的校准也拒掉。
+     *
+     * @return 4 个槽位都通过时为 true
+     */
+    fun verifySlots(frame: ArgbImage, calibration: Calibration): Boolean {
+        val recognizer = recognizerFactory.create(calibration)
+        val inside = (1..ReferenceLayout.SLOT_COUNT).all { slot ->
+            val r = recognizer.searchRect(slot)
+            r.x >= 0 && r.y >= 0 && r.x + r.width <= frame.width && r.y + r.height <= frame.height
+        }
+        if (!inside) return false
+        return recognizer.recognize(frame).slots.none { it == SlotResult.Unknown }
+    }
 
     /**
      * 在整帧画面里找帮助图标，返回按距离升序的多个候选。

@@ -3,9 +3,9 @@ package io.github.futurelesswindchan.kazefactor.engine.testutil
 import io.github.futurelesswindchan.kazefactor.domain.model.Factor
 import io.github.futurelesswindchan.kazefactor.domain.model.FactorDatabase
 import io.github.futurelesswindchan.kazefactor.engine.image.ArgbImage
-import io.github.futurelesswindchan.kazefactor.engine.image.ImageOps
 import io.github.futurelesswindchan.kazefactor.engine.vision.MaskedTemplate
 import io.github.futurelesswindchan.kazefactor.engine.vision.MatchThresholds
+import io.github.futurelesswindchan.kazefactor.engine.vision.RecognizerFactory
 import io.github.futurelesswindchan.kazefactor.engine.vision.ReferenceLayout
 import io.github.futurelesswindchan.kazefactor.engine.vision.SlotMatcher
 import io.github.futurelesswindchan.kazefactor.engine.vision.SlotResult
@@ -34,9 +34,6 @@ data class ScreenshotLabel(val file: String, val expected: List<SlotResult>)
  */
 object TestFixtures {
 
-    /** 问号模板的来源截图。7 张问号截图像素一致（架构方案第 0 节），任取一张即可。 */
-    const val QUESTION_SOURCE = "disable01.jpg"
-
     private val json = Json { ignoreUnknownKeys = true }
 
     val database: FactorDatabase by lazy {
@@ -50,16 +47,24 @@ object TestFixtures {
     val templateBank: TemplateBank by lazy { TemplateBank(database, ::loadIcon) }
 
     /**
-     * 第 1~4 槽的问号模板，从 [QUESTION_SOURCE] 按参考坐标裁取。
+     * 第 1~4 槽的问号原图（90×90），从 `assets/recognition/question_slot1~4.png` 读取。
+     * 这些 PNG 由 `RecognitionAssetGenerator` 从 `disable01.jpg` 裁出，与现场裁取逐像素一致。
+     */
+    val questionImages: List<ArgbImage> by lazy {
+        (1..ReferenceLayout.SLOT_COUNT).map { slot ->
+            val file = File(recognitionDir, "question_slot$slot.png")
+            require(file.isFile) { "找不到第 $slot 槽问号模板：${file.absolutePath}" }
+            file.inputStream().use(::readImage)
+        }
+    }
+
+    /**
+     * 第 1~4 槽的问号掩膜模板（scale = 1），由 [questionImages] 直接包装，与之前从截图现场裁取等价。
      *
-     * TODO(第 9 节第 3 步): 改为读取 `app/src/main/assets/recognition/` 中裁好的问号模板。
+     * NOTE: 保留此属性是为了让已有的 `newMatcher()` 和不涉及校准的测试不需要改动。
      */
     val questionTemplates: List<MaskedTemplate> by lazy {
-        val frame = loadScreenshot(QUESTION_SOURCE)
-        (1..ReferenceLayout.SLOT_COUNT).map { slot ->
-            val r = ReferenceLayout.slotRect(slot)
-            MaskedTemplate(ImageOps.crop(frame, r.x, r.y, r.width, r.height))
-        }
+        questionImages.map { MaskedTemplate(it) }
     }
 
     private val recognitionDir: File by lazy { File(requireProperty("kaze.recognitionDir")) }
@@ -86,7 +91,12 @@ object TestFixtures {
             .toList()
     }
 
-    /** 用 [thresholds] 创建一个新的匹配器。 */
+    /** 可按任意缩放生成识别器的工厂。 */
+    val recognizerFactory: RecognizerFactory by lazy {
+        RecognizerFactory(database, ::loadIcon, questionImages)
+    }
+
+    /** 用 [thresholds] 创建一个新的匹配器（scale = 1）。 */
     fun newMatcher(thresholds: MatchThresholds = MatchThresholds()): SlotMatcher =
         SlotMatcher(templateBank, questionTemplates, thresholds)
 
