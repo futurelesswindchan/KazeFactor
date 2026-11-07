@@ -78,11 +78,11 @@ KazeFactor/
 
 ### 代码许可
 
-本项目代码采用 **GPL-3.0** 许可协议开源。任何基于本项目的二次开发必须同样开源。
+本项目代码采用 **CC BY-NC-SA 4.0** 许可协议开源。任何基于本项目的二次开发必须同样开源。
 
 ### 游戏素材版权
 
-**重要**: 项目中使用的因子图标素材（位于 `app/src/main/assets/factors/icons/`）**版权归凉屋游戏（ChillyRoom）所有**，**不适用于 GPL-3.0 开源协议**。
+**重要**: 项目中使用的因子图标素材（位于 `app/src/main/assets/factors/icons/`）**版权归凉屋游戏（ChillyRoom）所有**，**不适用于 CC BY-NC-SA 4.0 开源协议**。
 
 详见 [ICON_LICENSE.txt](./ICON_LICENSE.txt)。
 
@@ -127,12 +127,6 @@ cd KazeFactor
 - 代码风格遵循 Kotlin 官方规范
 - 提交前运行 `./gradlew :core-domain:test` 确保测试通过
 - 修改因子数据时同步更新 `factors.json` 和测试
-
-## 📧 联系方式
-
-- **开发者**: FuturelessWindchan
-- **问题反馈**: [GitHub Issues](https://github.com/FuturelessWindchan/KazeFactor/issues)
-- **B站**: （待补充）
 
 ## 🙏 致谢
 
