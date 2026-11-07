@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">KazeFactor</string>
+    <string name="a11y_service_label">KazeFactor 自动刷新</string>
+    <string name="a11y_service_description">用于元气骑士联机挑战因子自动刷新：仅在您手动点击「开始」后截取屏幕以识别 4 个因子槽位，并自动点击游戏内的刷新按钮。截图仅在设备内存中处理，不保存（「保存当前画面」调试/反馈按钮除外），完全离线不联网。</string>
 </resources>

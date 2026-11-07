@@ -33,10 +33,9 @@ import kotlin.random.Random
  *   第一帧才做正式识别，所以同一帧不会识别两次。
  * - 没有档案：自动校准，最多 [MAX_CALIBRATION_ATTEMPTS] 帧。
  *
- * NOTE: 快速核验失败时只暂停为 [PauseReason.VERIFY_FAILED]，不在引擎里自动校准。
+ * NOTE: 快速核验失败时只暂停为 [PauseReason.VERIFY_FAILED]，不在引擎里自动校准（架构设计方 2026-11-07 确认）。
  * 第 3.4.6 节要求因出错重新设置位置时必须让用户确认预览，这一步只有界面能做，
- * 所以由 app 完成校准和预览、保存新档案后重新 [start]。这与第 3.4.2 节流程图「核验失败 → 先自动校准一次」
- * 的写法不同，待架构军师确认。
+ * 所以由 app 完成校准和预览、保存新档案后重新 [start]。
  *
  * ```
  * val engine = RefreshEngine(capturer, tapper, analyzer, Decision(db), calibrator, verifier)
@@ -243,8 +242,8 @@ class RefreshEngine(
                             _state.value = EngineState.Running(refreshCount, consecutiveFailures)
                         }
                         is DecisionResult.Miss -> {
-                            consecutiveFailures = 0
                             if (result.factorIds == lastFactorIds) {
+                                consecutiveFailures = 0
                                 // 与上次完全相同：游戏可能还没刷新这一帧，只重新截图不点击（第 4 节第 2 条）
                                 sameResultCount++
                                 if (sameResultCount >= settings.maxSameResultCount) {
@@ -252,17 +251,27 @@ class RefreshEngine(
                                     return
                                 }
                             } else {
-                                lastFactorIds = result.factorIds
-                                sameResultCount = 1
                                 // 上限在「识别完、点击前」检查：最后一次刷新的结果一定会被识别，命中不会漏掉
                                 val max = settings.maxRefreshCount
                                 if (max != null && refreshCount >= max) {
                                     _state.value = EngineState.Paused(PauseReason.MAX_REFRESH_COUNT, refreshCount)
                                     return
                                 }
-                                tapRefreshButton(ctx)
-                                refreshCount++
-                                _state.value = EngineState.Running(refreshCount, consecutiveFailures)
+                                if (tapRefreshButton(ctx)) {
+                                    consecutiveFailures = 0
+                                    lastFactorIds = result.factorIds
+                                    sameResultCount = 1
+                                    refreshCount++
+                                    _state.value = EngineState.Running(refreshCount, consecutiveFailures)
+                                } else {
+                                    // 系统拒绝手势（如无障碍手势被取消）归入连续失败（架构设计方 2026-11-07 拍板）
+                                    consecutiveFailures++
+                                    if (consecutiveFailures >= settings.maxConsecutiveFailures) {
+                                        _state.value = EngineState.Paused(PauseReason.CONSECUTIVE_FAILURES, refreshCount)
+                                        return
+                                    }
+                                    _state.value = EngineState.Running(refreshCount, consecutiveFailures)
+                                }
                             }
                         }
                     }
@@ -276,11 +285,10 @@ class RefreshEngine(
     }
 
     /** 点击刷新按钮，坐标在 ±10 px 内随机偏移（架构方案第 5 节）。 */
-    private suspend fun tapRefreshButton(ctx: RunContext) {
+    private suspend fun tapRefreshButton(ctx: RunContext): Boolean {
         val x = ctx.profile?.tapScreenX() ?: ctx.calibration.toScreenX(ReferenceLayout.REFRESH_TAP_X.toDouble())
         val y = ctx.profile?.tapScreenY() ?: ctx.calibration.toScreenY(ReferenceLayout.REFRESH_TAP_Y.toDouble())
-        // TODO(第 5 步): Tapper 返回 false（系统拒绝手势）时目前不处理，等真机拿到失败情况再定
-        tapper.tap(
+        return tapper.tap(
             (x + random.nextDouble(-TAP_JITTER_PX, TAP_JITTER_PX)).toFloat(),
             (y + random.nextDouble(-TAP_JITTER_PX, TAP_JITTER_PX)).toFloat()
         )

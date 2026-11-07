@@ -101,13 +101,13 @@ class RefreshEngineTest {
     }
 
     /** 记录每次点击的坐标和虚拟时刻。 */
-    private class FakeTapper(private val clock: () -> Long) : Tapper {
+    private class FakeTapper(private val clock: () -> Long, var acceptTap: Boolean = true) : Tapper {
         val taps = mutableListOf<Pair<Float, Float>>()
         val tapTimes = mutableListOf<Long>()
         override suspend fun tap(x: Float, y: Float): Boolean {
             taps += x to y
             tapTimes += clock()
-            return true
+            return acceptTap
         }
     }
 
@@ -213,6 +213,17 @@ class RefreshEngineTest {
         val f = fixture(emptyList(), frameCount = 1)
         f.engine.start(recipe, settings.copy(maxConsecutiveFailures = 3))
         assertEquals(PauseReason.CONSECUTIVE_FAILURES, assertIs<EngineState.Paused>(f.engine.state.value).reason)
+    }
+
+    @Test
+    fun `手势点击被系统拒绝也计入连续失败`() = runTest {
+        val f = fixture(List(4) { combo2 })
+        f.tapper.acceptTap = false
+        f.engine.start(recipe, settings.copy(maxConsecutiveFailures = 3))
+        val paused = assertIs<EngineState.Paused>(f.engine.state.value)
+        assertEquals(PauseReason.CONSECUTIVE_FAILURES, paused.reason)
+        assertEquals(0, paused.refreshCount)
+        assertEquals(3, f.tapper.taps.size)
     }
 
     @Test

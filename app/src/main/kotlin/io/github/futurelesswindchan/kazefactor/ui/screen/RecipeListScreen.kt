@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.domain.model.Recipe
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeListViewModel
+import io.github.futurelesswindchan.kazefactor.ui.component.A11yDebugDialog
 import io.github.futurelesswindchan.kazefactor.ui.component.CompactFactorChip
 import io.github.futurelesswindchan.kazefactor.ui.component.FactorSelectionState
 import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
@@ -40,12 +41,21 @@ fun RecipeListScreen(
     onNavigateToRecipeCode: (String?) -> Unit
 ) {
     val recipes by viewModel.recipes.collectAsState()
+    var showDebugDialog by remember { mutableStateOf(false) }
+
+    if (showDebugDialog) {
+        A11yDebugDialog(onDismiss = { showDebugDialog = false })
+    }
     
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("KazeFactor - 配方管理") },
                 actions = {
+                    // TODO(第 6 步): 临时调试入口，第 6 步替换为正式悬浮窗与权限引导页
+                    TextButton(onClick = { showDebugDialog = true }) {
+                        Text("调试")
+                    }
                     TextButton(onClick = { onNavigateToRecipeCode(null) }) {
                         Text("导入口令")
                     }
