@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
 > 最后更新：2026-11-07
-> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1~5 步（第 1~4 步提交 `6498756`，第 5 步无障碍截图与手势点击已通过真机 vivo V2312A 验收 ①②③）。下一步是第 6 步（悬浮窗、位置引导与主应用接入）。
-> 最新代码提交：`6498756`（第 4 步，状态文档提交 `22d40ab`）。**第 5 步代码与军师第 4 步拍板微调待提交**
+> 当前阶段：配方管理主应用与核心自动刷新全链路（架构方案第 9 节第 1~6 步）已全部实现并通过构建与单元测试（`core-domain` 85 个、`core-engine` 73 个、`app` 6 个单元测试全部通过）。第 5 步无障碍截图与手势点击已通过真机 vivo V2312A 验收 ①②③（提交 `f2105ad`）；第 6 步悬浮窗、位置引导与权限引导页已完成开发与构建验证，待代码提交与真机端到端验收。
+> 最新代码提交：`f2105ad`（第 5 步，状态文档提交 `4a1435d`）。**第 6 步代码待提交**
 
 **新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
@@ -35,7 +35,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 - 配方支持保存、编辑、删除、口令码分享与导入；配方名由用户自行命名，不写入口令码。
 - 自动纠正覆盖：超过 4 个、想要与不想要重叠、想要之间冲突、排除过多、不可能组合。
 - R6 低命中率仅作提示，不阻塞保存与开始。UI 中以命中概率横幅内的小标签呈现。
-- 刷新频率上限 1~10 次/秒，由用户设置（尚未实现）。
+- 刷新频率上限 1~10 次/秒，由用户在悬浮窗面板设置（已实现，默认 3 次/秒）。
 - 实机特征：刷新没有动画，按钮没有形变，点击后可直接截图识别。
 - 测试机分辨率 2388×1080，目前仅有这一台。
 - 应用桌面图标与开屏页不得使用游戏因子图标。当前的简易图标与系统默认开屏即为最终方案（见第 7.4 节）。
@@ -65,7 +65,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 ## 4. Git 状态与提交约定
 
-- 最新代码提交为 `cdc6d38`；本文件每次更新单独以 `docs(status)` 提交。
+- 最新代码提交为 `f2105ad`（第 5 步无障碍截图与手势点击）；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
@@ -77,6 +77,11 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 | 提交           | 内容                                                                                                                                                       |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4a1435d        | 同步第 5 步真机实测结果与架构设计拍板结论（本文件）                                                                                                        |
+| f2105ad        | 接入无障碍截图与手势点击（`A11yScreenCapturer`、`GestureTapper`、`KazeAccessibilityService`、Manifest 配置）。第 5 步完成                                   |
+| 22d40ab        | 同步第 4 步完成情况与吸附 ±20% 复测结果（本文件）                                                                                                          |
+| 6498756        | 实现刷新状态机与决策逻辑（`FrameAnalyzer`、`Decision`、`RefreshEngine`、`EngineState` 与 `loop/` 接口）。第 4 步完成                                        |
+| 01fa895        | 同步军师第 3 步拍板结果与吸附范围放宽（本文件）                                                                                                            |
 | cdc6d38        | `Snapper` 竖边搜索范围 ±12% → ±20%（只改常量和注释，未重跑测试）                                                                                           |
 | 24eb5b7        | 架构军师回写第 3 步实测值、吸附搜索范围放宽至 ±20%、补登 `CalibrationProfileCodec` 和 `FrameAnalyzer`                                                      |
 | dd5041d        | 模板支持横纵分开缩放；新增 `Snapper`、`CalibrationProfile`、`CalibrationProfileCodec`、`ProfileVerifier`；`SnapperProfileTest`。第 3c 步完成               |
@@ -179,13 +184,23 @@ codec/
 ### 7.2 app（`app/src/main/kotlin/.../`，`MainActivity.kt` 位于 `app/src/main/java/.../`）
 
 ```
-KazeFactorApplication.kt     全局手动依赖注入：factorDatabase、recipeRepository（lazy 单例）
-MainActivity.kt              Surface + NavHost，串联三个界面；从 Application 取依赖；
+KazeFactorApplication.kt     全局手动依赖注入：factorDatabase、recipeRepository、engineSettingsDataStore、
+                             calibrationProfileDataStore、recognizerFactory（lazy 单例）
+OverlayController.kt         进程内单例：连接主应用开关与无障碍服务悬浮窗
+MainActivity.kt              Surface + NavHost，串联四个界面；从 Application 取依赖；
                              popBackStackFrom(entry) 仅在页面处于 RESUMED 时返回，防止重复返回弹空返回栈（白屏）
-util/AssetFactorLoader.kt    从 assets/factors.json 加载 FactorDatabase
+util/
+  AssetFactorLoader.kt       从 assets/factors.json 加载 FactorDatabase
+  AssetRecognitionLoader.kt  从 assets/factors/icons/ 与 assets/recognition/ 零密度缩放加载 59 个图标原图、
+                             help.png（33×38）与 4 个问号模板，构建 RecognizerFactory
 data/
-  datastore/RecipeDataStore.kt     DataStore Preferences（文件名 recipe_storage，键 recipes_json），
+  datastore/
+    RecipeDataStore.kt             DataStore Preferences（文件名 recipe_storage，键 recipes_json），
                                    存配方 JSON 列表；含未知因子 id 的配方在读取时被过滤
+    EngineSettingsDataStore.kt     DataStore Preferences（文件名 engine_settings），存刷新频率（1~10）、
+                                   次数上限开关与自定义上限、命中震动开关、上次选中的配方 id
+    CalibrationProfileDataStore.kt DataStore Preferences（文件名 calibration_profile），按截图尺寸存取位置档案文本，
+                                   使用 Bitmap PNG 编解码接入 CalibrationProfileCodec
   repository/RecipeRepository.kt   单例；封装 DataStore、因子查询、RuleEngine、ProbabilityCalculator
 domain/viewmodel/
   ViewModelFactory.kt          手动工厂，参数为 repository、database、可选 recipeId
@@ -193,27 +208,38 @@ domain/viewmodel/
   RecipeEditorViewModel.kt     三态选择、实时校验与概率、autoFix、保存
   RecipeCodeViewModel.kt       口令码生成与导入
 ui/
-  navigation/Navigation.kt     字符串路由：recipe_list、recipe_editor?recipeId=、recipe_code?recipeId=
-  screen/RecipeListScreen.kt   配方列表；卡片展示想要/排除因子图标；顶栏「调试」（第 5 步临时）与「导入口令」入口
+  navigation/Navigation.kt     字符串路由：recipe_list、recipe_editor?recipeId=、recipe_code?recipeId=、permission_guide
+  screen/RecipeListScreen.kt   配方列表；卡片展示想要/排除因子图标；顶栏「自动刷新」与「导入口令」入口
   screen/RecipeEditorScreen.kt 配方编辑；固定高度的概率横幅（含低概率标签与已选/排除置顶槽）；
                                图标网格 / 列表视图切换（默认网格）；键盘收起、点击空白或因子、
                                按完成键、保存时清除输入框焦点；保存成功以 Toast 提示并立即返回，
                                保存中禁用保存按钮
   screen/RecipeCodeScreen.kt   recipeId 非空为导出模式，为空为导入模式；复制使用 LocalClipboard
-  component/A11yDebugDialog.kt 第 5 步临时无障碍调试面板（第 6 步删除）：服务状态、悬浮条开关、3 项调试动作与报告复制
+  screen/PermissionGuideScreen.kt 权限引导与悬浮窗开关：无障碍设置跳转、Android 13+「受限设置」解除引导
+                                  （直达应用信息页）、国产系统后台保活说明、Android 8~10 兼容提示
   component/FactorSelector.kt  FactorSelectionState（NONE/WANTED/UNWANTED）、FactorDisplayMode、
                                列表项、网格项、CompactFactorChip、状态角标、分类中文名
   component/RuleViolationCard.kt  阻塞性错误卡片与一键修复
   util/FactorIconMapper.kt     按 key 查找 drawable，以 FilterQuality.None 渲染以保持像素清晰
   theme/                       天蓝主色 #38BDF8；浅灰 / 墨蓝双主题；已覆盖 surfaceContainer* 以消除 M3 默认紫色
+overlay/
+  OverlayState.kt              OverlayMode（BUBBLE / PANEL / RUNNING / HIT / MANUAL_SETUP / CONFIRM_PREVIEW）、
+                               ConfirmPreviewData、ManualSetupData、OverlayUiState、禁区计算与 PauseReason 文案映射
+  OverlayViewModel.kt          串联 RefreshEngine、快速核验/自动校准 → 确认预览 → 手动拖框 + Snapper 吸附 →
+                               保存位置档案；统计最近 10 次刷新的实际速度、命中短震动、「保存当前画面」导出 PNG
+  OverlayContent.kt            小球 / 面板 / 运行中胶囊 / 命中展开 四种形态 Compose 视图
+  PositionSetupContent.kt      全屏手动位置引导（冻结截图 + 4 格轮廓拖动/两端缩放 + 刷新按钮准星 + 自动吸附）
+                               与全屏确认预览（4 槽绿框 + 识别结果核对 + 对/不对门控）
+  OverlayWindow.kt             TYPE_ACCESSIBILITY_OVERLAY 窗口管理、拖动、全屏切换与运行中禁区自动避让
 service/
-  KazeAccessibilityService.kt  无障碍服务：持有 A11yScreenCapturer、GestureTapper；监听前台包名切换；
-                               第 5 步提供左上角 TYPE_ACCESSIBILITY_OVERLAY 临时调试条与三项真机验证动作
-  A11yScreenCapturer.kt        takeScreenshot（API 30+）→ HardwareBuffer → ARGB_8888 BitmapFrame；含详细失败码记录
+  KazeAccessibilityService.kt  无障碍服务：持有 A11yScreenCapturer、GestureTapper，组装 RefreshEngine 与 OverlayWindow；
+                               监听前台包名切换（切出游戏立即暂停引擎）
+  ServiceLifecycleOwner.kt     为服务中的 ComposeView 提供 Lifecycle、ViewModelStore 与 SavedStateRegistry
+  A11yScreenCapturer.kt        takeScreenshot（API 30+）→ HardwareBuffer → ARGB_8888 BitmapFrame（minIntervalMs = 350 ms）
   GestureTapper.kt             dispatchGesture 短按点击（默认 40 ms），挂起等待完成回调
 ```
 
-`app` 模块仅有模板自带的 `ExampleUnitTest` 与 `ExampleInstrumentedTest`，没有业务测试。
+测试（`app/src/test/java/`）：`OverlayStateAndPrefTest`(5) + `ExampleUnitTest`(1)，共 6 个 `@Test` 方法，2026-11-07 全部通过。
 
 ### 7.3 「可选因子」遗留字段
 
@@ -375,12 +401,12 @@ loop/
   3. **`Tapper.tap()` 返回 `false`（系统拒绝手势）**：确认归入 `consecutiveFailures`（已在 `RefreshEngine` 补上并新增单测）。
   4. **统计字段**：确认速度统计与期望次数由第 6 步的 `OverlayViewModel` 计算，`EngineState.Running` 保持精简。
 
-已完成（2026-11-07，待提交）：架构方案第 9 节第 5 步，无障碍截图与手势点击（已在真机 `vivo V2312A` Android 13 / SDK 33 验证通过）：
+已完成（2026-11-07，`f2105ad`）：架构方案第 9 节第 5 步，无障碍截图与手势点击（已在真机 `vivo V2312A` Android 13 / SDK 33 验证通过）：
 
 - `AndroidManifest.xml`、`res/xml/accessibility_service_config.xml`、`res/values/strings.xml` 已按第 7 节配置。
 - `A11yScreenCapturer`：`takeScreenshot`（API 30+）→ `HardwareBuffer` → `Bitmap.wrapHardwareBuffer` + `copy(ARGB_8888)`，封装为 `BitmapFrame`（`crop` 用 `Bitmap.getPixels` 按矩形读取），`DEFAULT_MIN_INTERVAL_MS` 按真机实测设为 `350L`。
 - `GestureTapper`：`dispatchGesture` 注入 40 ms 短按手势，挂起等待完成回调。
-- `KazeAccessibilityService` + `A11yDebugDialog`（主界面顶栏「调试」按钮）：提供 `TYPE_ACCESSIBILITY_OVERLAY` 左上角迷你调试条与三项真机验证动作（第 6 步做正式悬浮窗时替换）。
+- `KazeAccessibilityService` + `A11yDebugDialog`（主界面顶栏「调试」按钮）：提供 `TYPE_ACCESSIBILITY_OVERLAY` 左上角迷你调试条与三项真机验证动作（第 6 步做正式悬浮窗时已替换删除）。
 - **第 5 步真机（vivo V2312A，2388×1080，Android 13 / SDK 33）验收结果**：
   1. **验收 ①（截图与悬浮窗）**：保存的截图尺寸为 `2388×1080`，与手机画面一致；**截图里包含左上角的 `TYPE_ACCESSIBILITY_OVERLAY` 悬浮条以及系统无障碍悬浮按钮**。因此第 6 步正式悬浮窗的小球与运行中状态条默认放在左上角（避开右侧 `x 966..1789` 的挑战因子面板），不会遮挡识别区域。
   2. **验收 ②（点击刷新）**：在开启挑战因子的情况下，点击 (1377, 433) 游戏正常刷新。
@@ -389,7 +415,17 @@ loop/
      - **25 ms 步进连续截满 20 张成功帧**（总尝试 198 次，其中 `INTERVAL_TIME_SHORT(3)` 178 次）：相邻两次成功发起间隔**最小 = 332 ms，平均 = 348.5 ms，最大 = 362 ms**（与 AOSP 333 ms 常量完全吻合）；单次 `takeScreenshot + 拷像素` 耗时**最小 = 54 ms，平均 = 68.4 ms，最大 = 110 ms**。
      - `A11yScreenCapturer.DEFAULT_MIN_INTERVAL_MS` 已定为 **350 ms**。
 
-合成分辨率下的识别阈值余量（架构方案第 2 步遗留的复测项，**尚未回写架构方案第 3.2 节**，第 3.2 节归架构军师维护）：
+已完成（2026-11-07，待提交）：架构方案第 9 节第 6 步，悬浮窗、位置引导与权限接入：
+
+- `EngineSettingsDataStore` 与 `CalibrationProfileDataStore`：分别保存自动刷新设置（频率、次数上限、震动、上次选的配方）与位置档案（按截图尺寸存取，使用 `Bitmap` PNG 编解码接入 `CalibrationProfileCodec`）。
+- `AssetRecognitionLoader`：从 `assets/factors/icons/` 与 `assets/recognition/` 零密度缩放加载 59 个图标原图、`help.png` 与 4 个问号模板，在 `KazeFactorApplication` 中提供全局共享的 `recognizerFactory`。
+- `ServiceLifecycleOwner` 与 `OverlayController`：为服务中的 `ComposeView` 提供生命周期宿主，并通过进程内单例连接主应用与无障碍服务。
+- `OverlayState`、`OverlayViewModel`、`OverlayContent`、`PositionSetupContent`、`OverlayWindow`：完整实现小球、面板、运行中/暂停胶囊、命中展开 4 种形态，以及全屏手动引导（4 格轮廓拖动/两端缩放 + 刷新按钮准星 + `Snapper` 吸附）和全屏确认预览（4 槽绿框 + 识别结果核对 + 对/不对门控）；运行中若悬浮窗与禁区重叠则自动避让；面板提供「保存当前画面」导出按钮。
+- `KazeAccessibilityService`：正式组装 `RefreshEngine` 与 `OverlayWindow`，监听前台包名切换（切出游戏立即暂停引擎）；删除第 5 步的临时 `A11yDebugDialog`。
+- `PermissionGuideScreen`：在主界面顶栏新增「自动刷新」入口，包含无障碍服务跳转、悬浮窗开关、Android 13+「受限设置」解除指引（直达应用信息页）、国产系统后台保活说明与 Android 8~10 兼容提示。
+- 新增 `OverlayStateAndPrefTest`（5 个测试），`:app:testDebugUnitTest`（6 个）、`:core-engine:test`（73 个）与 `assembleDebug` 全部通过。
+
+合成分辨率下的识别阈值余量（架构方案第 2 步遗留的复测项，已由架构军师在 `24eb5b7` 回写第 3.2 节）：
 
 | 指标                     | 阈值 | scale = 1 最差 | 合成图最差        |
 | ------------------------ | ---- | -------------- | ----------------- |
@@ -403,10 +439,10 @@ loop/
    - [x] 第 3a 步：自动校准（见上文）。
    - [x] 第 3b 步：开关判断与 `ScreenState`（见上文）。
    - [x] 第 3c 步：手动吸附、位置档案与快速核验（见上文）。
-   - [x] **下一项（开工前）**：重跑 `.\gradlew.bat :core-engine:test --console=plain`，确认 ±20% 后吸附测试仍然通过（2026-11-07 已确认：140/140 通过、0 拒收），并把 `snap-report.txt` 汇总行的新数字回填第 8 节。
    - [x] 第 4 步，`Decision`、`RefreshEngine`、`EngineState`、`FrameAnalyzer` 和 `loop/` 下的接口，用假截图器和假点击器测试（`6498756`，军师 4 项拍板已结案）。
-   - [x] 第 5 步，`KazeAccessibilityService`、`A11yScreenCapturer`、`GestureTapper`、Manifest 和无障碍配置，已在真机 `vivo V2312A` 完成 ①②③ 验收（见上文，代码待维护者提交 `feat(service): 接入无障碍截图与手势点击`）。
-   - [ ] **下一项**：第 6 步，悬浮窗（`OverlayWindow`、`OverlayState`、`OverlayViewModel`、Compose 视图，包含**位置确认预览**和**手动位置引导**两个状态）、`CalibrationStore`（DataStore 存位置档案与 `RefreshSettings`）、在 `KazeAccessibilityService` 中组装 `RefreshEngine`、主应用权限引导页与「保存当前画面」导出按钮（架构方案第 9 节第 6 行）。提交信息建议 `feat(overlay): 实现悬浮窗、位置引导与权限接入`。
+   - [x] 第 5 步，`KazeAccessibilityService`、`A11yScreenCapturer`、`GestureTapper`、Manifest 和无障碍配置，已在真机 `vivo V2312A` 完成 ①②③ 验收（`f2105ad`）。
+   - [x] 第 6 步，悬浮窗（`OverlayWindow`、`OverlayState`、`OverlayViewModel`、`OverlayContent`、`PositionSetupContent`）、`EngineSettingsDataStore`、`CalibrationProfileDataStore`、`KazeAccessibilityService` 组装 `RefreshEngine`、主应用 `PermissionGuideScreen` 与「保存当前画面」导出按钮（代码已完成并通过构建与单测，待提交 `feat(overlay): 新增悬浮窗与权限引导，打通自动刷新流程` 并进行真机端到端验收）。
+   - [ ] **下一项**：真机端到端验收第 6 步（选配方 → 开始 → 自动校准确认预览 → 自动刷到命中并震动；切到桌面立即暂停；拉下通知栏暂停；用「只要无限能量」配方测 20 次记录平均刷新次数），随后按体验决定是否做第 7 步（可选 MediaProjection 高速模式）或直接进入第 8 步文档收尾。
 
    动手前注意：
    - **槽位验证还没有被测试真正触发过**。合成测试里所有假帮助图标都在「预测边落在画面外」或「残差超标」这一步就被拒了，`Calibrator.verifySlots` 这道防线写好了但没拦下过任何东西。要验证它，需要构造「假锚点的预测边都在画面内」的合成图（例如上下加很宽的黑边），或等补拍非因子界面截图。可交给测试质检补。
