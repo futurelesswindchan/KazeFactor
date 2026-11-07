@@ -1,8 +1,8 @@
-<div align="left">
+<div align="center">
   <img src="assets/logo/KAZE FACTOR.svg" width="640" />
   <br>
   <h1>元气骑士挑战因子刷新助手 <img src="assets/logo/Pinia.png" width="32" /></h1>
-<div>
+</div>
 
 > 🚧 **项目状态**: 架构设计与基础设施搭建中
 
