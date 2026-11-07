@@ -29,7 +29,7 @@ import io.github.futurelesswindchan.kazefactor.engine.image.rgbAbsDiffSum
  * @param recognizerFactory 距离超过阈值时按档案位置识别槽位用
  * @param toggleThreshold 开关区域与参照块平均像素差（0~255）的上限
  */
-class ProfileVerifier(
+open class ProfileVerifier(
     private val recognizerFactory: RecognizerFactory,
     val toggleThreshold: Double = DEFAULT_TOGGLE_THRESHOLD
 ) {
@@ -55,7 +55,7 @@ class ProfileVerifier(
      * @param frame 完整截图
      * @param profile 位置档案；截图尺寸与档案不符时直接 [Result.Fail]（尺寸变了就当作没有档案）
      */
-    fun verify(frame: ArgbImage, profile: CalibrationProfile): Result {
+    open fun verify(frame: ArgbImage, profile: CalibrationProfile): Result {
         if (!profile.matchesScreen(frame.width, frame.height)) return Result.Fail(Double.POSITIVE_INFINITY)
         val distance = toggleDistance(frame, profile)
         if (distance <= toggleThreshold) return Result.Pass(distance)

@@ -44,7 +44,7 @@ data class HelpIconEstimate(val scale: Double, val x: Int, val y: Int, val dista
  * @param recognizerFactory 槽位验证用，按精修得到的缩放生成识别器
  * @throws IllegalArgumentException 模板尺寸不符时
  */
-class Calibrator(
+open class Calibrator(
     private val helpIconTemplate: ArgbImage,
     private val recognizerFactory: RecognizerFactory
 ) {
@@ -64,7 +64,7 @@ class Calibrator(
      * @param frame 完整截图
      * @return 全部检查通过的换算；没有任何候选通过时返回 null，调用方应换下一帧重试（最多 3 帧）
      */
-    fun calibrate(frame: ArgbImage): Calibration? =
+    open fun calibrate(frame: ArgbImage): Calibration? =
         refineCandidates(frame, locateHelpIcon(frame))?.calibration
 
     /**
