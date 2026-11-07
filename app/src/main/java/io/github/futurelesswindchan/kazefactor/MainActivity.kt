@@ -25,6 +25,7 @@ import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeEditorView
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeListViewModel
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.ViewModelFactory
 import io.github.futurelesswindchan.kazefactor.ui.navigation.NavigationRoutes
+import io.github.futurelesswindchan.kazefactor.ui.screen.PermissionGuideScreen
 import io.github.futurelesswindchan.kazefactor.ui.screen.RecipeCodeScreen
 import io.github.futurelesswindchan.kazefactor.ui.screen.RecipeEditorScreen
 import io.github.futurelesswindchan.kazefactor.ui.screen.RecipeListScreen
@@ -89,6 +90,18 @@ fun KazeFactorApp(
                 },
                 onNavigateToRecipeCode = { recipeId ->
                     navController.navigate(NavigationRoutes.buildRecipeCodeRoute(recipeId))
+                },
+                onNavigateToPermissionGuide = {
+                    navController.navigate(NavigationRoutes.PERMISSION_GUIDE)
+                }
+            )
+        }
+
+        // 自动刷新权限引导与悬浮窗开关界面
+        composable(NavigationRoutes.PERMISSION_GUIDE) { backStackEntry ->
+            PermissionGuideScreen(
+                onNavigateBack = {
+                    navController.popBackStackFrom(backStackEntry)
                 }
             )
         }

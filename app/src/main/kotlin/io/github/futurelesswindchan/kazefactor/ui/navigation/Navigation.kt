@@ -34,6 +34,11 @@ object NavigationRoutes {
      * 口令码界面完整路由（带参数占位符）
      */
     const val RECIPE_CODE_ROUTE = "$RECIPE_CODE?recipeId={recipeId}"
+
+    /**
+     * 权限引导与悬浮窗入口界面
+     */
+    const val PERMISSION_GUIDE = "permission_guide"
     
     /**
      * 构建配方编辑界面路由（用于导航跳转）

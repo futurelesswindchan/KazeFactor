@@ -1,0 +1,84 @@
+package io.github.futurelesswindchan.kazefactor.overlay
+
+import android.graphics.Bitmap
+import io.github.futurelesswindchan.kazefactor.data.datastore.EngineSettingsPref
+import io.github.futurelesswindchan.kazefactor.domain.model.Factor
+import io.github.futurelesswindchan.kazefactor.domain.model.FactorCategory
+import io.github.futurelesswindchan.kazefactor.engine.loop.PauseReason
+import io.github.futurelesswindchan.kazefactor.engine.vision.Calibration
+import io.github.futurelesswindchan.kazefactor.engine.vision.CalibrationProfile
+import io.github.futurelesswindchan.kazefactor.engine.vision.SlotResult
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * 悬浮窗状态、参数映射与确认预览门控单元测试（架构方案第 6 步）。
+ */
+class OverlayStateAndPrefTest {
+
+    private val dummyFactor = Factor(
+        id = 1,
+        key = "infinite_energy",
+        name = "无限能量",
+        nameEn = "Infinite Energy",
+        description = "",
+        descriptionEn = "",
+        category = FactorCategory.MAJOR_GOOD,
+        iconFileName = "infinite_energy.png"
+    )
+
+    @Test
+    fun `EngineSettingsPref toRefreshSettings default max count formula`() {
+        val pref = EngineSettingsPref(
+            frequencyPerSecond = 5,
+            maxCountLimitEnabled = true,
+            customMaxCount = 0
+        )
+        // 期望 11.4 次 → 11.4 * 3 = 34，低于 100 取 100
+        val s1 = pref.toRefreshSettings(11.4)
+        assertEquals(5, s1.frequencyPerSecond)
+        assertEquals(100, s1.maxRefreshCount)
+
+        // 期望 584 次 → 584 * 3 = 1752
+        val s2 = pref.toRefreshSettings(584.0)
+        assertEquals(1752, s2.maxRefreshCount)
+    }
+
+    @Test
+    fun `EngineSettingsPref toRefreshSettings disabled or custom max count`() {
+        val disabled = EngineSettingsPref(maxCountLimitEnabled = false)
+        assertNull(disabled.toRefreshSettings(200.0).maxRefreshCount)
+
+        val custom = EngineSettingsPref(maxCountLimitEnabled = true, customMaxCount = 250)
+        assertEquals(250, custom.toRefreshSettings(10.0).maxRefreshCount)
+    }
+
+    @Test
+    fun `EngineSettingsPref frequency is clamped to 1 to 10`() {
+        val low = EngineSettingsPref(frequencyPerSecond = 0).toRefreshSettings(50.0)
+        val high = EngineSettingsPref(frequencyPerSecond = 99).toRefreshSettings(50.0)
+        assertEquals(1, low.frequencyPerSecond)
+        assertEquals(10, high.frequencyPerSecond)
+    }
+
+    @Test
+    fun `OverlayUiState isFullScreenMode only true for MANUAL_SETUP and CONFIRM_PREVIEW`() {
+        assertFalse(OverlayUiState(mode = OverlayMode.BUBBLE).isFullScreenMode)
+        assertFalse(OverlayUiState(mode = OverlayMode.PANEL).isFullScreenMode)
+        assertFalse(OverlayUiState(mode = OverlayMode.RUNNING).isFullScreenMode)
+        assertFalse(OverlayUiState(mode = OverlayMode.HIT).isFullScreenMode)
+        assertTrue(OverlayUiState(mode = OverlayMode.MANUAL_SETUP).isFullScreenMode)
+        assertTrue(OverlayUiState(mode = OverlayMode.CONFIRM_PREVIEW).isFullScreenMode)
+    }
+
+    @Test
+    fun `PauseReason toDisplayMessage returns non-blank message for all reasons`() {
+        for (reason in PauseReason.entries) {
+            val msg = reason.toDisplayMessage()
+            assertTrue("PauseReason $reason should have non-blank display message", msg.isNotBlank())
+        }
+    }
+}

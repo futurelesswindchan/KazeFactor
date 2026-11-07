@@ -21,7 +21,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.domain.model.Recipe
 import io.github.futurelesswindchan.kazefactor.domain.viewmodel.RecipeListViewModel
-import io.github.futurelesswindchan.kazefactor.ui.component.A11yDebugDialog
 import io.github.futurelesswindchan.kazefactor.ui.component.CompactFactorChip
 import io.github.futurelesswindchan.kazefactor.ui.component.FactorSelectionState
 import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
@@ -32,29 +31,25 @@ import io.github.futurelesswindchan.kazefactor.ui.theme.textTertiary
  * @param viewModel 配方列表 ViewModel
  * @param onNavigateToEditor 跳转到编辑界面（参数：配方 ID，null 表示新建）
  * @param onNavigateToRecipeCode 跳转到口令码界面（参数：配方 ID，null 表示导入模式）
+ * @param onNavigateToPermissionGuide 跳转到自动刷新权限与悬浮窗界面
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeListScreen(
     viewModel: RecipeListViewModel,
     onNavigateToEditor: (String?) -> Unit,
-    onNavigateToRecipeCode: (String?) -> Unit
+    onNavigateToRecipeCode: (String?) -> Unit,
+    onNavigateToPermissionGuide: () -> Unit = {}
 ) {
     val recipes by viewModel.recipes.collectAsState()
-    var showDebugDialog by remember { mutableStateOf(false) }
-
-    if (showDebugDialog) {
-        A11yDebugDialog(onDismiss = { showDebugDialog = false })
-    }
     
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("KazeFactor - 配方管理") },
                 actions = {
-                    // TODO(第 6 步): 临时调试入口，第 6 步替换为正式悬浮窗与权限引导页
-                    TextButton(onClick = { showDebugDialog = true }) {
-                        Text("调试")
+                    TextButton(onClick = onNavigateToPermissionGuide) {
+                        Text("自动刷新")
                     }
                     TextButton(onClick = { onNavigateToRecipeCode(null) }) {
                         Text("导入口令")
