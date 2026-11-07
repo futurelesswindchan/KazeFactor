@@ -9,7 +9,7 @@
 # - core-engine/src/test/resources/screenshots/*.jpg（游戏实机截图，仅供识别测试 / in-game screenshots, for recognition tests only）
 
 # 以上文件（图标与游戏画面）的版权归凉屋游戏（ChillyRoom）所有，不适用于本项目的 CC BY-NC-SA 4.0 开源协议。
-# The files above (icons and game imagery) are copyright © ChillyRoom, and are NOT covered by the project's GPL-3.0 license.
+# The files above (icons and game imagery) are copyright © ChillyRoom, and are NOT covered by the project's CC BY-NC-SA 4.0 license.
 
 # 使用限制：
 # Usage restrictions:
