@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
 > 最后更新：2026-11-07
-> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1、2 步、第 3a、3b、3c 步和第 4 步（`FrameAnalyzer`、`Decision`、刷新状态机）。第 4 步有几处与架构方案的出入待架构军师拍板（第 8 节）。下一步是第 5 步（无障碍截图与点击，需要真机）。
-> 最新代码提交：`6498756`。**第 4 步代码已写好、测试通过，但尚未提交**（提交命令已整理给维护者）
+> 当前阶段：配方管理主应用（离线部分）已完成并可在真机运行。核心功能（识别与自动刷新）已完成架构方案第 9 节第 1~5 步（第 1~4 步提交 `6498756`，第 5 步无障碍截图与手势点击已通过真机 vivo V2312A 验收 ①②③）。下一步是第 6 步（悬浮窗、位置引导与主应用接入）。
+> 最新代码提交：`6498756`（第 4 步，状态文档提交 `22d40ab`）。**第 5 步代码与军师第 4 步拍板微调待提交**
 
 **新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
@@ -194,17 +194,23 @@ domain/viewmodel/
   RecipeCodeViewModel.kt       口令码生成与导入
 ui/
   navigation/Navigation.kt     字符串路由：recipe_list、recipe_editor?recipeId=、recipe_code?recipeId=
-  screen/RecipeListScreen.kt   配方列表；卡片展示想要/排除因子图标；顶栏「导入口令」入口
+  screen/RecipeListScreen.kt   配方列表；卡片展示想要/排除因子图标；顶栏「调试」（第 5 步临时）与「导入口令」入口
   screen/RecipeEditorScreen.kt 配方编辑；固定高度的概率横幅（含低概率标签与已选/排除置顶槽）；
                                图标网格 / 列表视图切换（默认网格）；键盘收起、点击空白或因子、
                                按完成键、保存时清除输入框焦点；保存成功以 Toast 提示并立即返回，
                                保存中禁用保存按钮
   screen/RecipeCodeScreen.kt   recipeId 非空为导出模式，为空为导入模式；复制使用 LocalClipboard
+  component/A11yDebugDialog.kt 第 5 步临时无障碍调试面板（第 6 步删除）：服务状态、悬浮条开关、3 项调试动作与报告复制
   component/FactorSelector.kt  FactorSelectionState（NONE/WANTED/UNWANTED）、FactorDisplayMode、
                                列表项、网格项、CompactFactorChip、状态角标、分类中文名
   component/RuleViolationCard.kt  阻塞性错误卡片与一键修复
   util/FactorIconMapper.kt     按 key 查找 drawable，以 FilterQuality.None 渲染以保持像素清晰
   theme/                       天蓝主色 #38BDF8；浅灰 / 墨蓝双主题；已覆盖 surfaceContainer* 以消除 M3 默认紫色
+service/
+  KazeAccessibilityService.kt  无障碍服务：持有 A11yScreenCapturer、GestureTapper；监听前台包名切换；
+                               第 5 步提供左上角 TYPE_ACCESSIBILITY_OVERLAY 临时调试条与三项真机验证动作
+  A11yScreenCapturer.kt        takeScreenshot（API 30+）→ HardwareBuffer → ARGB_8888 BitmapFrame；含详细失败码记录
+  GestureTapper.kt             dispatchGesture 短按点击（默认 40 ms），挂起等待完成回调
 ```
 
 `app` 模块仅有模板自带的 `ExampleUnitTest` 与 `ExampleInstrumentedTest`，没有业务测试。
@@ -280,9 +286,9 @@ loop/
 - `vision/ToggleDetectorTest`(8)：47 张截图开关判断与画面状态；4 种缩放的合成图抽查；采样区出画面、纯色画面、阈值边界、绿色像素判断、非法阈值、`ScreenState.classify` 判定表。报告 `toggle-report.txt`。
 - `vision/RecognitionAssetGenerator`(1)：素材生成工具，平时跳过，用法见第 3 节。
 - `loop/DecisionTest`(12)：`Unknown`/`Question` 槽位、命中/未命中、排除因子、`Ambiguous` 展开（全命中/全未命中/结论不一致）、17 种组合与重复/冲突检查。
-- `loop/RefreshEngineTest`(24)：假截图器 + 假点击器 + 虚拟时间，覆盖命中停止、未命中点击、点击偏移 ±10 px、`UNCERTAIN` 不点击、连续 N 次暂停、失败计数被 `MISS` 清零、截图失败计数、点击无效暂停、达到次数上限暂停、最后一次刷新结果仍被识别、开关关闭暂停、开关开但有问号按 `UNCERTAIN`、不在因子界面暂停、`resume` 先识别再点击且不重新校准、快速核验通过后第一帧 `Unknown` 判核验失败、核验开关关闭/失败、`Frame.close()` 调用、节拍间隔（虚拟时间）、运行中 `stop`、用户暂停后恢复、`RefreshSettings` 计算。
+- `loop/RefreshEngineTest`(25)：假截图器 + 假点击器 + 虚拟时间，覆盖命中停止、未命中点击、点击偏移 ±10 px、`UNCERTAIN` 不点击、连续 N 次暂停、失败计数被 `MISS` 清零、截图失败计数、手势点击被系统拒绝计数、点击无效暂停、达到次数上限暂停、最后一次刷新结果仍被识别、开关关闭暂停、开关开但有问号按 `UNCERTAIN`、不在因子界面暂停、`resume` 先识别再点击且不重新校准、快速核验通过后第一帧 `Unknown` 判核验失败、核验开关关闭/失败、`Frame.close()` 调用、节拍间隔（虚拟时间）、运行中 `stop`、用户暂停后恢复、`RefreshSettings` 计算。
 
-2026-11-07 最后一次全量运行（第 4 步完成后，提交前运行）：72 个通过，1 个跳过（素材生成器），0 failures / 0 errors，构建耗时约 3 分钟。`app` 模块的代码没有改动，`78a31ab` 之后未运行 `assembleDebug`。
+2026-11-07 最后一次运行：`:core-engine:test` 共 73 个通过，1 个跳过（素材生成器），0 failures / 0 errors。
 
 ---
 
@@ -356,18 +362,32 @@ loop/
 
 拒收的 4 次（「k = 0.75、JPEG 85、e = +30」）在 ±20% 后全部转为通过。原因是放宽搜索范围后 scaleX 初值偏 −13% 也能搜到正确位置。2026-11-07 全量重跑 `:core-engine:test` 确认。
 
-已完成（2026-11-07，代码尚未提交）：架构方案第 9 节第 4 步，`FrameAnalyzer`、`Decision`、刷新状态机与 `loop/` 下的接口：
+已完成（2026-11-07，`6498756`）：架构方案第 9 节第 4 步，`FrameAnalyzer`、`Decision`、刷新状态机与 `loop/` 下的接口：
 
 - `FrameAnalyzer`（`vision/`）：`analyze(frame, calibration)` 无档案时用 `ToggleDetector`（绿色像素占比）；`analyzeWithProfile(frame, profile)` 有档案时与档案的开关参照块比较（距离 ≤ 15 为 ON，否则为 OFF，再交给 `ScreenState.classify`）。
 - `Decision`：把 `Ambiguous` 槽位展开笛卡尔积，按 17 种类别组合、互不重复、冲突对过滤；合法组合全命中 → `Hit`、全未命中 → `Miss`、结论不一致或无合法组合 → `Uncertain`。
 - `RefreshEngine`：`start` / `resume` / `pause` / `stop`。次数上限放在「识别完、点击前」检查，避免漏掉最后一次刷出的命中；`resume` 沿用已有校准不重跑，先截图识别再决定点不点。
 - `Calibrator`、`ProfileVerifier`、`FrameAnalyzer` 标为 `open`，供 `RefreshEngineTest` 用假实现替换。
-- 测试：`DecisionTest`(12)、`RefreshEngineTest`(24)，全部通过，覆盖架构方案第 9 节第 4 行全部验收条目。
-- **与架构方案的出入（待架构军师拍板）**：
-  1. **快速核验失败时的处理**：第 3.4.2 节写的是「快速核验失败 → 先自动校准一次」，当前实现直接暂停为 `PauseReason.VERIFY_FAILED`，不在引擎内自动校准。理由：第 3.4.6 节要求因出错重设位置时必须让用户确认预览，这一步只有 UI 能做，由 app 完成校准与预览后再带新档案 `start`。
-  2. **校准与每帧分析仍按 `Frame.crop(0, 0, width, height)` 取整帧**：`Frame` 接口已按第 2.1 节定义为 `crop(x, y, w, h)`，但 `Calibrator`、`FrameAnalyzer` 目前都接收整帧 `ArgbImage`。打算第 5 步真机测速后再决定是否改为按区域读取。
-  3. **`Tapper.tap()` 返回 `false`（系统拒绝手势）**：当前留了 `TODO(第 5 步)` 未处理，等第 5 步真机实测失败情况后再定是计入失败还是直接暂停。
-  4. **统计字段**：第 4 节第 7 条提到的「实际速度（最近 10 次的平均）」「期望次数」尚未放进 `EngineState.Running`（目前只有 `refreshCount`、`failureCount`），可在第 6 步做悬浮窗前补齐。
+- 测试：`DecisionTest`(12)、`RefreshEngineTest`(25)，全部通过，覆盖架构方案第 9 节第 4 行全部验收条目。
+- **架构军师拍板结论（2026-11-07 已结案）**：
+  1. **快速核验失败时的处理**：确认采用当前做法（引擎直接暂停为 `PauseReason.VERIFY_FAILED`，由 app 统筹后续自动校准与确认预览）。
+  2. **校准与每帧分析仍按 `Frame.crop(0, 0, width, height)` 取整帧**：确认保持现状，先看第 5 步真机测速数据。
+  3. **`Tapper.tap()` 返回 `false`（系统拒绝手势）**：确认归入 `consecutiveFailures`（已在 `RefreshEngine` 补上并新增单测）。
+  4. **统计字段**：确认速度统计与期望次数由第 6 步的 `OverlayViewModel` 计算，`EngineState.Running` 保持精简。
+
+已完成（2026-11-07，待提交）：架构方案第 9 节第 5 步，无障碍截图与手势点击（已在真机 `vivo V2312A` Android 13 / SDK 33 验证通过）：
+
+- `AndroidManifest.xml`、`res/xml/accessibility_service_config.xml`、`res/values/strings.xml` 已按第 7 节配置。
+- `A11yScreenCapturer`：`takeScreenshot`（API 30+）→ `HardwareBuffer` → `Bitmap.wrapHardwareBuffer` + `copy(ARGB_8888)`，封装为 `BitmapFrame`（`crop` 用 `Bitmap.getPixels` 按矩形读取），`DEFAULT_MIN_INTERVAL_MS` 按真机实测设为 `350L`。
+- `GestureTapper`：`dispatchGesture` 注入 40 ms 短按手势，挂起等待完成回调。
+- `KazeAccessibilityService` + `A11yDebugDialog`（主界面顶栏「调试」按钮）：提供 `TYPE_ACCESSIBILITY_OVERLAY` 左上角迷你调试条与三项真机验证动作（第 6 步做正式悬浮窗时替换）。
+- **第 5 步真机（vivo V2312A，2388×1080，Android 13 / SDK 33）验收结果**：
+  1. **验收 ①（截图与悬浮窗）**：保存的截图尺寸为 `2388×1080`，与手机画面一致；**截图里包含左上角的 `TYPE_ACCESSIBILITY_OVERLAY` 悬浮条以及系统无障碍悬浮按钮**。因此第 6 步正式悬浮窗的小球与运行中状态条默认放在左上角（避开右侧 `x 966..1789` 的挑战因子面板），不会遮挡识别区域。
+  2. **验收 ②（点击刷新）**：在开启挑战因子的情况下，点击 (1377, 433) 游戏正常刷新。
+  3. **验收 ③（连续截图 20 次实测最小间隔与失败码）**：
+     - **0 ms 紧贴调用 5 次**：第 1 次成功（91 ms），第 2~5 次全部立即返回 `ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT(3)`（耗时 1~3 ms）。
+     - **25 ms 步进连续截满 20 张成功帧**（总尝试 198 次，其中 `INTERVAL_TIME_SHORT(3)` 178 次）：相邻两次成功发起间隔**最小 = 332 ms，平均 = 348.5 ms，最大 = 362 ms**（与 AOSP 333 ms 常量完全吻合）；单次 `takeScreenshot + 拷像素` 耗时**最小 = 54 ms，平均 = 68.4 ms，最大 = 110 ms**。
+     - `A11yScreenCapturer.DEFAULT_MIN_INTERVAL_MS` 已定为 **350 ms**。
 
 合成分辨率下的识别阈值余量（架构方案第 2 步遗留的复测项，**尚未回写架构方案第 3.2 节**，第 3.2 节归架构军师维护）：
 
@@ -384,8 +404,9 @@ loop/
    - [x] 第 3b 步：开关判断与 `ScreenState`（见上文）。
    - [x] 第 3c 步：手动吸附、位置档案与快速核验（见上文）。
    - [x] **下一项（开工前）**：重跑 `.\gradlew.bat :core-engine:test --console=plain`，确认 ±20% 后吸附测试仍然通过（2026-11-07 已确认：140/140 通过、0 拒收），并把 `snap-report.txt` 汇总行的新数字回填第 8 节。
-   - [x] 第 4 步，`Decision`、`RefreshEngine`、`EngineState`、`FrameAnalyzer`（军师 `24eb5b7` 新增，一帧 → `FrameAnalysis(screenState, slotResults)`，放在 `vision/` 包下）和 `loop/` 下的接口，用假截图器和假点击器测试（见上文，代码待维护者提交 `feat(engine): 实现刷新状态机与决策逻辑`）。
-   - [ ] **下一项**：第 5 步，`KazeAccessibilityService`、`A11yScreenCapturer`、`GestureTapper`、Manifest 和无障碍配置，加临时调试按钮在真机验证截图与点击（架构方案第 9 节第 5 行）。提交信息建议 `feat(service): 接入无障碍截图与手势点击`。
+   - [x] 第 4 步，`Decision`、`RefreshEngine`、`EngineState`、`FrameAnalyzer` 和 `loop/` 下的接口，用假截图器和假点击器测试（`6498756`，军师 4 项拍板已结案）。
+   - [x] 第 5 步，`KazeAccessibilityService`、`A11yScreenCapturer`、`GestureTapper`、Manifest 和无障碍配置，已在真机 `vivo V2312A` 完成 ①②③ 验收（见上文，代码待维护者提交 `feat(service): 接入无障碍截图与手势点击`）。
+   - [ ] **下一项**：第 6 步，悬浮窗（`OverlayWindow`、`OverlayState`、`OverlayViewModel`、Compose 视图，包含**位置确认预览**和**手动位置引导**两个状态）、`CalibrationStore`（DataStore 存位置档案与 `RefreshSettings`）、在 `KazeAccessibilityService` 中组装 `RefreshEngine`、主应用权限引导页与「保存当前画面」导出按钮（架构方案第 9 节第 6 行）。提交信息建议 `feat(overlay): 实现悬浮窗、位置引导与权限接入`。
 
    动手前注意：
    - **槽位验证还没有被测试真正触发过**。合成测试里所有假帮助图标都在「预测边落在画面外」或「残差超标」这一步就被拒了，`Calibrator.verifySlots` 这道防线写好了但没拦下过任何东西。要验证它，需要构造「假锚点的预测边都在画面内」的合成图（例如上下加很宽的黑边），或等补拍非因子界面截图。可交给测试质检补。

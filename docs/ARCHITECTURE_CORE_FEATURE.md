@@ -12,7 +12,8 @@
 > - 第 9 节第 2 步已完成（2026-11-01）：识别层源码和前 3 类测试已就位，`:core-engine:test` 全部通过。第 3.2 节的阈值初值经实测全部保留，实测数据已回写到第 3.2 节。问号模板暂时在测试中从 `disable01.jpg` 现场裁取，第 3 步改为读取 `assets/recognition/`。
 > - 第 9 节第 3a 步进行中（2026-11-02）：`assets/recognition/` 下的 `dice.png` 和 `question_slot1~4.png` 已由测试工具 `RecognitionAssetGenerator` 从 `disable01.jpg` 裁出（`6514fe6`）。`ReferenceLayout` 的刷新点击位置已改为第 5 节的 (1377, 433)。维护者确认 `Calibration` 在 3a 就用 `scaleX`、`scaleY` 两个字段，自动校准填相同值，避免 3c 再改签名。
 > - 第 9 节第 3a、3b、3c 步已完成（2026-11-04）：3a 自动校准（`78a31ab`），3b 开关判断与 `ScreenState`（`1c55b1f`），3c 手动吸附、位置档案与快速核验（`dd5041d`）。实测值已由架构设计方在 `24eb5b7` 回写第 3.2、3.3、3.4 节；`cdc6d38` 将吸附搜索范围放宽至 ±20%，2026-11-07 重跑全量测试确认 140/140 通过、0 拒收。
-> - 第 9 节第 4 步已完成（2026-11-07，待提交）：`FrameAnalyzer`、`Decision`、`RefreshEngine`、`EngineState` 与 `loop/` 接口已实现并通过全部单元测试（`DecisionTest` 12 个、`RefreshEngineTest` 24 个）。有 4 处实现细节与本文的出入记在 `PROJECT_STATUS.md` 第 8 节，待架构设计方拍板。
+> - 第 9 节第 4 步已完成（2026-11-07，`6498756`）：`FrameAnalyzer`、`Decision`、`RefreshEngine`、`EngineState` 与 `loop/` 接口已实现并通过全部单元测试（`DecisionTest` 12 个、`RefreshEngineTest` 25 个）。4 处实现细节已由架构设计方拍板结案（记在 `PROJECT_STATUS.md` 第 8 节）。
+> - 第 9 节第 5 步已完成（2026-11-07，待提交）：`KazeAccessibilityService`、`A11yScreenCapturer`、`GestureTapper`、Manifest 无障碍配置与临时真机调试入口已在真机 `vivo V2312A`（Android 13 / SDK 33）通过 ①②③ 验收。实测截图包含 `TYPE_ACCESSIBILITY_OVERLAY` 悬浮窗；连续截图最小成功间隔 332 ms（平均 348.5 ms），单次 `takeScreenshot+拷像素` 平均 68.4 ms，间隔不足返回 `ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT(3)`，`minIntervalMs` 定为 `350L`。下一步是第 6 步（悬浮窗、位置引导与主应用接入）。
 >
 > **架构修订（架构设计方，2026-11-01）**：依据主力开发的锚点测量（`4259e92`）和维护者确认的开关语义，修改了第 3.1 节（校准改为骰子粗定位 + 面板边框精修，循环箭头作废）、第 3.3 节（画面状态按开关拆分）、第 4 节第 4 条、第 8 节、第 9 节第 3 步，新增第 10 节第 6、7 条。依据见调研报告实验 8、9。
 >
