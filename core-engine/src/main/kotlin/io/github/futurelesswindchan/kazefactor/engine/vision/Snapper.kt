@@ -208,6 +208,9 @@ class Snapper {
 
     /**
      * 16 条边各自的覆盖率：采样点里「符号正确且幅度 > [EDGE_AMPLITUDE_THRESHOLD]」的占比。
+     *
+     * 为兼容不同屏幕分辨率与 GPU 双线性插值造成的边缘亚像素模糊（跳变分散在相邻 2 px 上），
+     * 竖边在 `b ± 1`、横边在 `b ± 1` 内取最大梯度参与判定；
      * 落在画面外的采样点计入分母，算作不通过：边伸出画面说明轮廓位置不对。
      */
     private fun edgeCoverages(lum: Luminance, p: Params): List<Double> {
@@ -219,7 +222,14 @@ class Snapper {
             for (refY in VERTICAL_VALID_Y) {
                 total++
                 val y = screenY(refY, p.scaleY, p.top).roundToInt()
-                if (y in 0 until lum.height && lum.clampedGradientX(y, b, edge.polarity) > EDGE_AMPLITUDE_THRESHOLD) good++
+                if (y in 0 until lum.height) {
+                    val g = maxOf(
+                        lum.clampedGradientX(y, b - 1, edge.polarity),
+                        lum.clampedGradientX(y, b, edge.polarity),
+                        lum.clampedGradientX(y, b + 1, edge.polarity)
+                    )
+                    if (g > EDGE_AMPLITUDE_THRESHOLD) good++
+                }
             }
             result += good.toDouble() / total
         }
@@ -232,7 +242,14 @@ class Snapper {
                 for (refX in horizontalSampleRange(box)) {
                     total++
                     val x = screenX(refX, p.scaleX, p.left).roundToInt()
-                    if (x in 0 until lum.width && lum.clampedGradientY(x, b, polarity) > EDGE_AMPLITUDE_THRESHOLD) good++
+                    if (x in 0 until lum.width) {
+                        val g = maxOf(
+                            lum.clampedGradientY(x, b - 1, polarity),
+                            lum.clampedGradientY(x, b, polarity),
+                            lum.clampedGradientY(x, b + 1, polarity)
+                        )
+                        if (g > EDGE_AMPLITUDE_THRESHOLD) good++
+                    }
                 }
                 result += good.toDouble() / total
             }

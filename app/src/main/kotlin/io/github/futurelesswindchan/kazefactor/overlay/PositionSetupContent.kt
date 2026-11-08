@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,6 +115,10 @@ private fun ManualSetupScreen(
     onCancel: () -> Unit
 ) {
     var dragMode by remember { mutableStateOf(DragMode.NONE) }
+    val latestSetup by rememberUpdatedState(setup)
+    val latestOnUpdateUserFrame by rememberUpdatedState(onUpdateUserFrame)
+    val latestOnUpdateTapPoint by rememberUpdatedState(onUpdateTapPoint)
+    val latestOnPerformSnap by rememberUpdatedState(onPerformSnap)
     val imageBitmap = remember(setup.screenshot) { setup.screenshot.asImageBitmap() }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -130,23 +135,25 @@ private fun ManualSetupScreen(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(setup.userFrame) {
+                .pointerInput(Unit) {
                     detectTapGestures { offset ->
                         // 若点击点在 4 格轮廓下方区域，则更新刷新按钮点击坐标
-                        val scale = setup.userFrame.estimatedScaleX
-                        val frameBottom = setup.userFrame.top +
+                        val current = latestSetup.userFrame
+                        val scale = current.estimatedScaleX
+                        val frameBottom = current.top +
                             (Snapper.REF_FRAME_BOTTOM - Snapper.REF_FRAME_TOP) * scale
                         if (offset.y > frameBottom + 20f) {
-                            onUpdateTapPoint(offset.x, offset.y)
+                            latestOnUpdateTapPoint(offset.x, offset.y)
                         }
                     }
                 }
                 .pointerInput(Unit) {
-                    var currentFrame = setup.userFrame
+                    var currentFrame = latestSetup.userFrame
                     detectDragGestures(
                         onDragStart = { startOffset ->
-                            currentFrame = setup.userFrame
-                            val handleHitRadius = 48f
+                            // 始终从最新状态（含上次吸附后的校准位置或上次拖放位置）开始拖动
+                            currentFrame = latestSetup.userFrame
+                            val handleHitRadius = 56f
                             val scale = currentFrame.estimatedScaleX
                             val boxHeight = (Snapper.REF_FRAME_BOTTOM - Snapper.REF_FRAME_TOP) * scale
                             val centerY = currentFrame.top + boxHeight / 2.0
@@ -156,8 +163,8 @@ private fun ManualSetupScreen(
                                     abs(startOffset.y - centerY) <= boxHeight -> DragMode.RESIZE_LEFT
                                 abs(startOffset.x - currentFrame.right) <= handleHitRadius &&
                                     abs(startOffset.y - centerY) <= boxHeight -> DragMode.RESIZE_RIGHT
-                                startOffset.x in (currentFrame.left - 30)..(currentFrame.right + 30) &&
-                                    startOffset.y in (currentFrame.top - 30)..(currentFrame.top + boxHeight + 30) -> DragMode.MOVE_WHOLE
+                                startOffset.x in (currentFrame.left - 40)..(currentFrame.right + 40) &&
+                                    startOffset.y in (currentFrame.top - 40)..(currentFrame.top + boxHeight + 40) -> DragMode.MOVE_WHOLE
                                 else -> DragMode.NONE
                             }
                         },
@@ -182,13 +189,16 @@ private fun ManualSetupScreen(
                                 DragMode.NONE -> currentFrame
                             }
                             currentFrame = next
-                            onUpdateUserFrame(next)
+                            latestOnUpdateUserFrame(next)
                         },
                         onDragEnd = {
                             if (dragMode != DragMode.NONE) {
                                 dragMode = DragMode.NONE
-                                onPerformSnap()
+                                latestOnPerformSnap()
                             }
+                        },
+                        onDragCancel = {
+                            dragMode = DragMode.NONE
                         }
                     )
                 }
@@ -218,6 +228,13 @@ private fun ManualSetupScreen(
                         style = Stroke(width = 4f)
                     )
                 }
+
+                // 即使已吸附，也绘制左右两端的拉手圆点，方便用户继续微调
+                val cy = (topY + bottomY) / 2f
+                val leftEdgeX = calib.toScreenX(Snapper.REF_FRAME_LEFT.toDouble()).toFloat()
+                val rightEdgeX = calib.toScreenX(Snapper.REF_FRAME_RIGHT.toDouble()).toFloat()
+                drawCircle(outlineColor, radius = 14f, center = Offset(leftEdgeX, cy))
+                drawCircle(outlineColor, radius = 14f, center = Offset(rightEdgeX, cy))
             } else {
                 val sx = setup.userFrame.estimatedScaleX
                 val leftBase = setup.userFrame.left

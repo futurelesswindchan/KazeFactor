@@ -72,6 +72,7 @@ open class ProfileVerifier(
      * 开关区域与参照块的平均像素差（RGB 三通道平均绝对差，0~255）。
      *
      * 区域按档案的换算求出，尺寸与 [captureTogglePatch] 截下参照块时相同（同一个换算、同一个参考矩形）。
+     * 在 ±2 px 搜索微调以抵抗机型亚像素采样微差。
      *
      * @return 尺寸不符或区域超出画面时为 [Double.POSITIVE_INFINITY]
      */
@@ -80,7 +81,26 @@ open class ProfileVerifier(
         val patch = profile.toggleOnPatch
         if (rect.width != patch.width || rect.height != patch.height) return Double.POSITIVE_INFINITY
         if (!rect.isInside(frame)) return Double.POSITIVE_INFINITY
-        return averagePixelDiff(ImageOps.crop(frame, rect.x, rect.y, rect.width, rect.height), patch)
+
+        var minDiff = averagePixelDiff(ImageOps.crop(frame, rect.x, rect.y, rect.width, rect.height), patch)
+        if (minDiff <= toggleThreshold) return minDiff
+
+        for (dy in -2..2) {
+            for (dx in -2..2) {
+                if (dx == 0 && dy == 0) continue
+                val curX = rect.x + dx
+                val curY = rect.y + dy
+                val inside = curX >= 0 && curY >= 0 && curX + rect.width <= frame.width && curY + rect.height <= frame.height
+                if (inside) {
+                    val diff = averagePixelDiff(ImageOps.crop(frame, curX, curY, rect.width, rect.height), patch)
+                    if (diff < minDiff) {
+                        minDiff = diff
+                        if (minDiff <= toggleThreshold) return minDiff
+                    }
+                }
+            }
+        }
+        return minDiff
     }
 
     /** 按 [calibration] 识别 4 个槽位，都是问号时为 true；搜索区域出画面时为 false。 */

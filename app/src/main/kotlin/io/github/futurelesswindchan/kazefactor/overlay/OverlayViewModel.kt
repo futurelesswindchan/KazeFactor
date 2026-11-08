@@ -331,8 +331,11 @@ class OverlayViewModel(
 
     /**
      * 进入手动引导：隐藏悬浮窗（由 OverlayWindow 协作），截一张干净画面，初始化 4 格轮廓。
+     *
+     * 优先复用已保存的当前分辨率位置档案（或自动校准探测到的位置），避免用户每次重设时
+     * 都要从默认居中位置重新拖拽（解决实机反馈问题 c）。
      */
-    suspend fun enterManualSetup(startAfterConfirm: Boolean) {
+    suspend fun enterManualSetup(startAfterConfirm: Boolean, baseCalibration: Calibration? = null) {
         _uiState.update { it.copy(isBusyCalibrating = true, statusMessage = "正在截取游戏画面…") }
         val frame = captureCleanFrame() ?: run {
             _uiState.update { it.copy(isBusyCalibrating = false, statusMessage = "截图失败") }
@@ -346,14 +349,21 @@ class OverlayViewModel(
 
         val screenW = bitmap.width
         val screenH = bitmap.height
-        // 初始轮廓：按屏幕高度等比换算的参考位置（架构方案第 3.4.3 节第 1 条）
-        val scale = screenH.toDouble() / ReferenceLayout.HEIGHT
-        val originX = (screenW - ReferenceLayout.WIDTH * scale) / 2.0
-        val originY = 0.0
-        val defaultCalib = Calibration(scale, scale, originX, originY)
-        val initialInput = UserFrameInput.fromCalibration(defaultCalib)
-        val defaultTapX = defaultCalib.toScreenX(ReferenceLayout.REFRESH_TAP_X.toDouble()).toFloat()
-        val defaultTapY = defaultCalib.toScreenY(ReferenceLayout.REFRESH_TAP_Y.toDouble()).toFloat()
+        val savedProfile = calibrationProfileDataStore.getProfile(screenW, screenH)
+
+        // 初始轮廓优先级：显式传入的 baseCalibration > 已存位置档案 > 按屏幕高度等比换算的默认位置
+        val initialCalib = baseCalibration
+            ?: savedProfile?.toCalibration()
+            ?: run {
+                val scale = screenH.toDouble() / ReferenceLayout.HEIGHT
+                val originX = (screenW - ReferenceLayout.WIDTH * scale) / 2.0
+                Calibration(scale, scale, originX, 0.0)
+            }
+        val initialInput = UserFrameInput.fromCalibration(initialCalib)
+        val defaultTapX = (savedProfile?.tapScreenX()
+            ?: initialCalib.toScreenX(ReferenceLayout.REFRESH_TAP_X.toDouble())).toFloat()
+        val defaultTapY = (savedProfile?.tapScreenY()
+            ?: initialCalib.toScreenY(ReferenceLayout.REFRESH_TAP_Y.toDouble())).toFloat()
 
         _uiState.update {
             it.copy(
@@ -373,11 +383,17 @@ class OverlayViewModel(
         performSnap()
     }
 
-    /** 更新手动引导中用户拖动的轮廓坐标。 */
+    /** 更新手动引导中用户拖动的轮廓坐标（开始新拖动时清除旧吸附结果，跟随用户手势）。 */
     fun updateManualUserFrame(input: UserFrameInput) {
         _uiState.update { current ->
             val setup = current.manualSetup ?: return@update current
-            current.copy(manualSetup = setup.copy(userFrame = input, snapError = null))
+            current.copy(
+                manualSetup = setup.copy(
+                    userFrame = input,
+                    snappedCalibration = null,
+                    snapError = null
+                )
+            )
         }
     }
 
@@ -408,10 +424,12 @@ class OverlayViewModel(
 
             val measured = snapper.measure(fullImage, setup.userFrame)
             if (measured.passesEdgeCheck) {
+                val snappedInput = UserFrameInput.fromCalibration(measured.calibration)
                 _uiState.update { current ->
                     current.copy(
                         manualSetup = current.manualSetup?.copy(
                             isSnapping = false,
+                            userFrame = snappedInput,
                             snappedCalibration = measured.calibration,
                             snapError = null
                         )
@@ -432,10 +450,12 @@ class OverlayViewModel(
                     else -> null
                 }
                 if (verifiedCalib != null) {
+                    val snappedInput = UserFrameInput.fromCalibration(verifiedCalib)
                     _uiState.update { current ->
                         current.copy(
                             manualSetup = current.manualSetup?.copy(
                                 isSnapping = false,
+                                userFrame = snappedInput,
                                 snappedCalibration = verifiedCalib,
                                 snapError = null
                             )
@@ -447,7 +467,7 @@ class OverlayViewModel(
                             manualSetup = current.manualSetup?.copy(
                                 isSnapping = false,
                                 snappedCalibration = null,
-                                snapError = "未检测到有效因子，请确认已打开挑战因子开关并将框拖到 4 个方格上"
+                                snapError = "未自动吸附到方框边缘，请微调蓝框对准 4 个因子槽位，或直接点「下一步」核对识别结果"
                             )
                         )
                     }
@@ -544,10 +564,14 @@ class OverlayViewModel(
         }
     }
 
-    /** 确认预览：用户点击「不对，重新设置」。 */
+    /** 确认预览：用户点击「不对，重新设置」，保留刚预览的校准位置作为初始框方便用户微调。 */
     fun onConfirmPreviewReject() {
+        val currentPreview = _uiState.value.confirmPreview
         viewModelScope.launch(Dispatchers.Default) {
-            enterManualSetup(startAfterConfirm = _uiState.value.confirmPreview?.startAfterConfirm ?: false)
+            enterManualSetup(
+                startAfterConfirm = currentPreview?.startAfterConfirm ?: false,
+                baseCalibration = currentPreview?.calibration
+            )
         }
     }
 

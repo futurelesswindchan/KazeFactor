@@ -52,14 +52,29 @@ class ToggleDetector(
     /**
      * 采样区内绿色像素的占比（0~1），供 [detect] 和阈值报告使用。
      *
+     * 针对异形屏/状态栏微移导致的 ±2~3 px 漂移，在采样区周围 ±3 px 内寻找最佳匹配绿色占比。
+     *
      * @return 采样区超出画面或面积为 0 时返回 null
      */
     fun greenRatio(frame: ArgbImage, calibration: Calibration): Double? {
         val r = sampleRect(calibration)
-        val inside = r.width > 0 && r.height > 0 &&
-            r.x >= 0 && r.y >= 0 && r.x + r.width <= frame.width && r.y + r.height <= frame.height
-        if (!inside) return null
-        return greenRatio(ImageOps.crop(frame, r.x, r.y, r.width, r.height))
+        if (r.width <= 0 || r.height <= 0) return null
+        
+        var maxRatio: Double? = null
+        for (dy in -3..3) {
+            for (dx in -3..3) {
+                val curX = r.x + dx
+                val curY = r.y + dy
+                val inside = curX >= 0 && curY >= 0 && curX + r.width <= frame.width && curY + r.height <= frame.height
+                if (inside) {
+                    val ratio = greenRatio(ImageOps.crop(frame, curX, curY, r.width, r.height))
+                    if (maxRatio == null || ratio > maxRatio) {
+                        maxRatio = ratio
+                    }
+                }
+            }
+        }
+        return maxRatio
     }
 
     /**
