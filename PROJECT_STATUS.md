@@ -1,8 +1,8 @@
 # KazeFactor 项目交接备忘录
 
 > 最后更新：2026-11-08
-> 当前阶段：配方管理主应用与核心自动刷新全链路（架构方案第 9 节第 1~6 步）已全部实现并通过构建与单元测试（`core-domain` 85 个、`core-engine` 73 个、`app` 6 个单元测试全部通过）。第 5 步无障碍截图与手势点击已通过真机 vivo V2312A 验收 ①②③（提交 `f2105ad`）；第 6 步悬浮窗、位置引导与权限引导页已完成提交（`54dcd0b`），README 已重写完成（`068dabf`）；Signed Release APK 打包完成，正在由维护者和小伙伴们进行真机端到端验收与测试。
-> 最新代码提交：`54dcd0b`（第 6 步悬浮窗与权限引导）；最新文档提交：`068dabf`（README 与协议对齐）。
+> 当前阶段：配方管理主应用与核心自动刷新全链路（架构方案第 9 节第 1~6 步）已全部实现并通过构建与单元测试（`core-domain` 85 个、`core-engine` 73 个、`app` 6 个单元测试全部通过）。第 5 步无障碍截图与手势点击已通过真机 vivo V2312A 验收 ①②③（提交 `f2105ad`）；第 6 步悬浮窗、位置引导与权限引导页已完成提交（`54dcd0b`），README 已重写完成（`068dabf`）；首轮多机 Signed Release APK 实测反馈的 4 项功能适配问题与全套 UI 体验重塑已全部修复提交（`4140d86`、`1148dd7`），正在分发第 2 轮 Release APK 进行真机复测。
+> 最新代码提交：`1148dd7`（首轮多机实测 UI 引导重塑）与 `4140d86`（首轮多机实测底层修复）。
 
 **新话题接手请先读：** 本文第 8 节（下一步）→ `docs/ARCHITECTURE_CORE_FEATURE.md`（实现以它为准）→ 需要时查 `docs/ARCHITECTURE_RESEARCH_REPORT.md`（结论的依据）。`docs/HANDOFF_CORE_FEATURE.md` 是交给架构方的需求原稿，已被架构方案回应，只作历史参考。
 
@@ -65,7 +65,7 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 ## 4. Git 状态与提交约定
 
-- 最新代码提交为 `54dcd0b`（第 6 步悬浮窗与权限引导）；最新文档提交为 `068dabf`（重写 README 与协议对齐）；本文件每次更新单独以 `docs(status)` 提交。
+- 最新代码提交为 `1148dd7`（首轮多机实测 UI 引导重塑）与 `4140d86`（首轮多机实测底层修复）；本文件每次更新单独以 `docs(status)` 提交。
 - 提交约定（维护者要求）：
   - 每完成一个最小可提交的进度就提交一次。
   - 提交信息格式为「英文类型前缀 + 中文主体」，例如 `feat(ui): 新增因子选择池紧凑图标网格模式`。
@@ -77,6 +77,8 @@ KazeFactor 是《元气骑士》联机模式「挑战因子」的配方管理与
 
 | 提交           | 内容                                                                                                                                                       |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1148dd7        | 新增主界面自动刷新引导横幅，重塑悬浮窗高对比暗色一屏布局与权限分步向导（`OverlayContent`、`PositionSetupContent`、`RecipeListScreen`、`PermissionGuideScreen`） |
+| 4140d86        | 修复 Release 因子图标丢失（统一从 `assets/factors/icons/` 加载并缓存）、全屏刘海穿透消除偏移、截屏自平滑冷却与隐窗避让、核验双保险与校准容错兜底            |
 | 068dabf        | 重写项目说明文档并修正素材版权协议表述（README.md、ICON_LICENSE.txt、PROJECT_STATUS.md）                                                                   |
 | ddaf0b0        | 同步第 6 步悬浮窗、位置引导与权限接入完成情况（本文件）                                                                                                    |
 | 54dcd0b        | 新增悬浮窗与权限引导，打通自动刷新流程（`OverlayWindow`、`OverlayViewModel`、`OverlayContent`、`PositionSetupContent`、DataStore、Service）。第 6 步完成   |
@@ -428,6 +430,15 @@ loop/
 - `PermissionGuideScreen`：在主界面顶栏新增「自动刷新」入口，包含无障碍服务跳转、悬浮窗开关、Android 13+「受限设置」解除指引（直达应用信息页）、国产系统后台保活说明与 Android 8~10 兼容提示。
 - 新增 `OverlayStateAndPrefTest`（5 个测试），`:app:testDebugUnitTest`（6 个）、`:core-engine:test`（73 个）与 `assembleDebug` 全部通过。
 - `README.md` 与 `ICON_LICENSE.txt` 已重写完成并提交（`068dabf`），已构建 signed release APK 并进入多机实测阶段。
+
+已完成（2026-11-08，提交 `4140d86`、`1148dd7`）：首轮多机 Signed Release APK 实测问题修复与 UI 体验重塑：
+
+- **修复问题 a（Release 因子图标消失，全变 🎲 占位符）**：`FactorIconMapper` 废弃 `resources.getIdentifier` 反射，统一改为从 `assets/factors/icons/` 零密度缩放加载原始 PNG 并维护线程安全内存缓存，不受 R8 资源缩减影响。
+- **修复问题 b（部分挖孔/刘海屏全屏校准界面左侧灰边挤压与画框视觉偏移）**：`OverlayWindow` 全屏模式注入 `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS`（API 30+，向下兼容 `SHORT_EDGES`）与 `FLAG_LAYOUT_NO_LIMITS`，使全屏窗口与物理截图 1:1 像素级重合。
+- **修复问题 c（确认预览点「对，开始」后立即报核验失败）**：`A11yScreenCapturer` 引入底层自平滑冷却（距上次截图不足 `minIntervalMs` 时自动 `delay` 补齐，不再因调用过快返回 `null`）；`ProfileVerifier` 与 `FrameAnalyzer` 在开关参照块像素差处于 `(15.0, 25.0]` 浮动区间时结合 `ToggleDetector` 绿色像素占比（`> 50%`）双保险兜底；确认预览点击开始后预留 150 ms 退场沉淀窗口。
+- **修复问题 d（高分屏/拉伸画面校准与手动吸附失败卡死）**：发起校准、手动引导截底图与导出画面前先将悬浮窗设为 `INVISIBLE`/`alpha = 0f` 并等待 100 ms，避免悬浮窗自遮挡；`Snapper.MIN_EDGE_COVERAGE` 调整为 `0.85`（兼顾拦截偏槽位错误与轻微模糊容错），且 `OverlayViewModel.performSnap` 在边缘覆盖率未达标时依次用 `Calibrator.verifySlots` 验证梯度最优解与用户粗框，通过即放行；手动引导界面支持直接点击「下一步 ➔」进入确认预览。
+- **UI 与引导体验重塑**：`OverlayWindow` 强制暗色高对比主题；`OverlayContent` 严格单面板互斥渲染、94% 高遮蔽墨蓝底色、横屏一屏化紧凑布局（合并期望次数行与震动复选框行、锁死按钮高度与单行展示）；`RecipeListScreen` 置顶三态自动刷新启动横幅与可折叠 3 步教程、卡片展示因子中文名；`PermissionGuideScreen` 改为 Step 1 → Step 2 纵向全宽按钮流。
+- `:core-engine:test` 与 `:app:testDebugUnitTest` 全部通过，已重新打包 Signed Release APK 分发第 2 轮真机复测。
 
 合成分辨率下的识别阈值余量（架构方案第 2 步遗留的复测项，已由架构军师在 `24eb5b7` 回写第 3.2 节）：
 
