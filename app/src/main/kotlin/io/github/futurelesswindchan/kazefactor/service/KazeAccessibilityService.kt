@@ -94,6 +94,7 @@ class KazeAccessibilityService : AccessibilityService() {
             scope = serviceScope
         )
         overlayWindow = window
+        vm.onWindowAlphaRequest = { alpha -> window.setWindowAlpha(alpha) }
 
         instance = this
         _isConnected.value = true

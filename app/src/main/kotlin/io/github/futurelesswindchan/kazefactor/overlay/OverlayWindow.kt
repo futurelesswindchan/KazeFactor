@@ -3,6 +3,7 @@ package io.github.futurelesswindchan.kazefactor.overlay
 import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
@@ -21,9 +22,10 @@ import kotlin.math.roundToInt
  *
  * 职责：
  * 1. 创建 `ComposeView` 并通过 [ServiceLifecycleOwner] 挂载到 `WindowManager`（`TYPE_ACCESSIBILITY_OVERLAY`）；
- * 2. 处理用户拖动位置更新；
- * 3. 切换全屏形态（手动引导/确认预览为 `MATCH_PARENT`）与浮窗形态（小球/面板/运行中/命中为 `WRAP_CONTENT`）；
- * 4. 禁区避让（第 5 节：校准后得到禁区，运行时若悬浮窗与禁区重叠，自动移到禁区外最近的屏幕边缘）。
+ * 2. 强制使用暗色主题渲染（解决亮色系统下按钮与文字隐身问题）；
+ * 3. 切换全屏形态（手动引导/确认预览为 `MATCH_PARENT`，并穿透全面屏/挖孔安全区）与浮窗形态（`WRAP_CONTENT`）；
+ * 4. 支持截屏前临时隐窗避让（alpha = 0f），防止悬浮窗自遮挡游戏画面；
+ * 5. 禁区避让（运行时若悬浮窗与因子面板禁区重叠，自动移到禁区外最近的屏幕边缘）。
  */
 class OverlayWindow(
     private val context: Context,
@@ -64,7 +66,8 @@ class OverlayWindow(
         val view = ComposeView(context).apply {
             owner.attachTo(this)
             setContent {
-                KazeFactorTheme {
+                // 强制暗色高对比主题，无论系统处于亮色还是暗色模式，均保证悬浮窗清晰通透
+                KazeFactorTheme(darkTheme = true) {
                     OverlayContent(
                         viewModel = viewModel,
                         onDragDelta = { dx, dy -> moveBy(dx, dy) }
@@ -99,6 +102,19 @@ class OverlayWindow(
         OverlayController.updateActualShowing(false)
     }
 
+    /**
+     * 临时隐窗（供截图前避让使用，防止悬浮窗自遮挡游戏画面）。
+     * 在主线程同步更新 View 的 alpha 与 visibility，确保下一帧 VSYNC 生效。
+     */
+    suspend fun setWindowAlpha(alpha: Float) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+            composeView?.let { view ->
+                view.alpha = alpha
+                view.visibility = if (alpha <= 0.01f) android.view.View.INVISIBLE else android.view.View.VISIBLE
+            }
+        }
+    }
+
     /** 移动悬浮窗位置（仅在非全屏形态下生效）。 */
     private fun moveBy(dx: Float, dy: Float) {
         val view = composeView ?: return
@@ -126,7 +142,12 @@ class OverlayWindow(
         }
     }
 
-    /** 切换全屏模式（手动引导/确认预览）与普通浮窗模式。 */
+    /**
+     * 切换全屏模式（手动引导/确认预览）与普通浮窗模式。
+     *
+     * 全屏模式下穿透刘海/挖孔屏（LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS），
+     * 确保窗口物理大小与截图 1:1 绝对重合，杜绝挤压变形与画框偏移（实机问题 b 修复）。
+     */
     private fun updateWindowLayoutMode(isFullScreen: Boolean) {
         val view = composeView ?: return
         val params = layoutParams ?: return
@@ -136,11 +157,30 @@ class OverlayWindow(
             params.height = WindowManager.LayoutParams.MATCH_PARENT
             params.x = 0
             params.y = 0
+            params.flags = params.flags or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                params.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                @Suppress("DEPRECATION")
+                params.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
         } else {
             params.width = WindowManager.LayoutParams.WRAP_CONTENT
             params.height = WindowManager.LayoutParams.WRAP_CONTENT
             params.x = floatingX
             params.y = floatingY
+            params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                params.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+            }
         }
 
         try {

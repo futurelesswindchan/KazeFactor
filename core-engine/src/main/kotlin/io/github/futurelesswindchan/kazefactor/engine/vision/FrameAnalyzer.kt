@@ -30,19 +30,10 @@ data class FrameAnalysis(
  * 开关的判断方式按有没有位置档案区分（架构方案第 3.4.5 节最后一段）：
  * - [analyze]：没有档案（自动校准得到的位置），用绿色像素占比规则。
  * - [analyzeWithProfile]：有档案，和档案里用户屏幕上截下的开关参照块比较。
- *
- * 设为 `open` 是为了让 `RefreshEngineTest` 用脚本化的假实现替换，不跑真识别。
- *
- * ```
- * val analyzer = FrameAnalyzer(recognizerFactory)
- * val analysis = analyzer.analyze(frame, calibration)
- * if (analysis.screenState == ScreenState.FACTOR_SCREEN_ON) decision.decide(analysis.slotResults, recipe)
- * ```
- *
- * NOTE: 本类不可变，可在多个协程间共享。
+ *   若距离在 (15.0, 25.0] 浮动区间，自动使用 [ToggleDetector] 绿色占比兜底判定（双保险机制）。
  *
  * @param recognizerFactory 按换算生成识别器，同一缩放的模板会被缓存
- * @param toggleDetector 没有档案时的开关检测器
+ * @param toggleDetector 开关检测器
  * @param profileToggleThreshold 有档案时，开关区域与参照块平均像素差的上限，默认与快速核验相同
  */
 open class FrameAnalyzer(
@@ -51,7 +42,7 @@ open class FrameAnalyzer(
     private val profileToggleThreshold: Double = ProfileVerifier.DEFAULT_TOGGLE_THRESHOLD
 ) {
 
-    private val verifier = ProfileVerifier(recognizerFactory, profileToggleThreshold)
+    private val verifier = ProfileVerifier(recognizerFactory, profileToggleThreshold, toggleDetector)
 
     /**
      * 按 [calibration] 分析一帧，开关用绿色像素占比判断。
@@ -66,9 +57,9 @@ open class FrameAnalyzer(
     /**
      * 按位置档案分析一帧，开关与档案里的参照块比较。
      *
-     * 距离 ≤ 阈值判为开，否则判为关；再交给 [ScreenState.classify]：
+     * 距离 ≤ 阈值判为开；处于模糊区间结合 ToggleDetector 兜底；否则判为关。
+     * 再交给 [ScreenState.classify]：
      * 「关 + 4 个问号」是开关关闭，「关 + 不是问号」是不在因子界面（或位置已经变了）。
-     * 运行中玩家关掉开关、切出游戏，都靠这里发现。
      *
      * @param frame 完整截图
      * @param profile 位置档案；截图尺寸不符时直接返回 [NOT_FACTOR_SCREEN_RESULT]
@@ -76,7 +67,16 @@ open class FrameAnalyzer(
     open fun analyzeWithProfile(frame: ArgbImage, profile: CalibrationProfile): FrameAnalysis {
         if (!profile.matchesScreen(frame.width, frame.height)) return NOT_FACTOR_SCREEN_RESULT
         return analyzeWith(frame, profile.toCalibration()) {
-            if (verifier.toggleDistance(frame, profile) <= profileToggleThreshold) ToggleState.ON else ToggleState.OFF
+            val dist = verifier.toggleDistance(frame, profile)
+            if (dist <= profileToggleThreshold) {
+                ToggleState.ON
+            } else if (dist <= ProfileVerifier.TOGGLE_FUZZY_MAX_DISTANCE &&
+                toggleDetector.detect(frame, profile.toCalibration()) == ToggleState.ON
+            ) {
+                ToggleState.ON
+            } else {
+                ToggleState.OFF
+            }
         }
     }
 

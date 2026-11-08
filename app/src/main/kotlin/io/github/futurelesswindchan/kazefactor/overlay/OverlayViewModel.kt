@@ -80,6 +80,20 @@ class OverlayViewModel(
     private var lastObservedCount = 0
     private val probabilityCalculator = ProbabilityCalculator(factorDatabase)
 
+    /** 供截屏避让时调用的透明度回调 */
+    var onWindowAlphaRequest: (suspend (Float) -> Unit)? = null
+
+    /** 截取一帧无悬浮窗自遮挡的纯净画面（隐藏视图并等待 100ms 确保 SurfaceFlinger 合成新帧） */
+    private suspend fun captureCleanFrame(): io.github.futurelesswindchan.kazefactor.engine.loop.Frame? {
+        onWindowAlphaRequest?.invoke(0f)
+        try {
+            kotlinx.coroutines.delay(100)
+            return capturer.capture()
+        } finally {
+            onWindowAlphaRequest?.invoke(1f)
+        }
+    }
+
     init {
         // 1. 监听配方列表更新
         viewModelScope.launch {
@@ -186,7 +200,7 @@ class OverlayViewModel(
 
         _uiState.update { it.copy(isBusyCalibrating = true, statusMessage = "正在准备位置…") }
         engineJob = viewModelScope.launch(Dispatchers.Default) {
-            val frame = capturer.capture()
+            val frame = captureCleanFrame()
             if (frame == null) {
                 _uiState.update {
                     it.copy(
@@ -320,7 +334,7 @@ class OverlayViewModel(
      */
     suspend fun enterManualSetup(startAfterConfirm: Boolean) {
         _uiState.update { it.copy(isBusyCalibrating = true, statusMessage = "正在截取游戏画面…") }
-        val frame = capturer.capture() ?: run {
+        val frame = captureCleanFrame() ?: run {
             _uiState.update { it.copy(isBusyCalibrating = false, statusMessage = "截图失败") }
             return
         }
@@ -355,6 +369,8 @@ class OverlayViewModel(
                 )
             )
         }
+        // 进入手动引导后立即对初始框尝试一次吸附，若默认位置已在范围内则直接变绿
+        performSnap()
     }
 
     /** 更新手动引导中用户拖动的轮廓坐标。 */
@@ -390,26 +406,51 @@ class OverlayViewModel(
             bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
             val fullImage = ArgbImage(w, h, pixels)
 
-            val snapResult = snapper.snap(fullImage, setup.userFrame)
-            if (snapResult != null) {
+            val measured = snapper.measure(fullImage, setup.userFrame)
+            if (measured.passesEdgeCheck) {
                 _uiState.update { current ->
                     current.copy(
                         manualSetup = current.manualSetup?.copy(
                             isSnapping = false,
-                            snappedCalibration = snapResult.calibration,
+                            snappedCalibration = measured.calibration,
                             snapError = null
                         )
                     )
                 }
             } else {
-                _uiState.update { current ->
-                    current.copy(
-                        manualSetup = current.manualSetup?.copy(
-                            isSnapping = false,
-                            snappedCalibration = null,
-                            snapError = "未对准，请把框大致拖到 4 个方格外沿再试"
+                // 架构兜底策略（军师拍板 2026-11-08）：
+                // 若梯度吸附因高分屏插值模糊未达严苛覆盖率，依次检查梯度最优解与用户粗框能否通过 4 槽位验证
+                val fallbackCalib = Calibration(
+                    scaleX = setup.userFrame.estimatedScaleX,
+                    scaleY = setup.userFrame.estimatedScaleX,
+                    originX = setup.userFrame.left - setup.userFrame.estimatedScaleX * Snapper.REF_FRAME_LEFT,
+                    originY = setup.userFrame.top - setup.userFrame.estimatedScaleX * Snapper.REF_FRAME_TOP
+                )
+                val verifiedCalib = when {
+                    calibrator.verifySlots(fullImage, measured.calibration) -> measured.calibration
+                    calibrator.verifySlots(fullImage, fallbackCalib) -> fallbackCalib
+                    else -> null
+                }
+                if (verifiedCalib != null) {
+                    _uiState.update { current ->
+                        current.copy(
+                            manualSetup = current.manualSetup?.copy(
+                                isSnapping = false,
+                                snappedCalibration = verifiedCalib,
+                                snapError = null
+                            )
                         )
-                    )
+                    }
+                } else {
+                    _uiState.update { current ->
+                        current.copy(
+                            manualSetup = current.manualSetup?.copy(
+                                isSnapping = false,
+                                snappedCalibration = null,
+                                snapError = "未检测到有效因子，请确认已打开挑战因子开关并将框拖到 4 个方格上"
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -418,7 +459,12 @@ class OverlayViewModel(
     /** 手动引导完成，跳转到确认预览界面。 */
     fun proceedToConfirmPreviewFromManual() {
         val setup = _uiState.value.manualSetup ?: return
-        val calib = setup.snappedCalibration ?: return
+        val calib = setup.snappedCalibration ?: Calibration(
+            scaleX = setup.userFrame.estimatedScaleX,
+            scaleY = setup.userFrame.estimatedScaleX,
+            originX = setup.userFrame.left - setup.userFrame.estimatedScaleX * Snapper.REF_FRAME_LEFT,
+            originY = setup.userFrame.top - setup.userFrame.estimatedScaleX * Snapper.REF_FRAME_TOP
+        )
         val tapRefX = calib.toReferenceX(setup.tapScreenX.toDouble())
         val tapRefY = calib.toReferenceY(setup.tapScreenY.toDouble())
 
@@ -483,6 +529,9 @@ class OverlayViewModel(
             }
 
             if (preview.startAfterConfirm) {
+                // UI 动画避让（军师架构建议 2026-11-08）：
+                // 给全屏悬浮窗退场与小球展示留出 150ms 沉淀窗口，避免过渡帧残留污染首帧识别
+                kotlinx.coroutines.delay(150)
                 val recipe = _uiState.value.selectedRecipe
                 if (recipe != null) {
                     startEngineWithProfile(recipe, profile)
@@ -507,7 +556,7 @@ class OverlayViewModel(
      */
     fun saveCurrentScreenShot(onSaved: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.Default) {
-            val frame = capturer.capture() ?: return@launch
+            val frame = captureCleanFrame() ?: return@launch
             try {
                 val bitmap = (frame as? A11yScreenCapturer.BitmapFrame)?.bitmap
                 if (bitmap != null) {

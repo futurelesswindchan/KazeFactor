@@ -299,8 +299,11 @@ class Snapper {
         /** 梯度截断值。方框边缘跳变约 18，图标内部边缘可达 100 以上。 */
         const val GRADIENT_CLAMP = 8.0
 
-        /** 逐边检查的覆盖率下限。实验 11：正确吸附的帧最差那条边 ≥ 0.98，错误吸附的 ≤ 0.83。 */
-        const val MIN_EDGE_COVERAGE = 0.9
+        /**
+         * 逐边检查的覆盖率下限。实验 11：正确吸附的帧最差那条边 ≥ 0.98，偏一个槽位（错误吸附）的 ≤ 0.83。
+         * 取 0.85 兼顾拦截偏槽位错误与高分屏轻微模糊容错；更重度的模糊由上层 `Calibrator.verifySlots` 兜底放行。
+         */
+        const val MIN_EDGE_COVERAGE = 0.85
 
         /** 逐边检查中一个采样点算「落在边上」的最低幅度。 */
         const val EDGE_AMPLITUDE_THRESHOLD = 4.0

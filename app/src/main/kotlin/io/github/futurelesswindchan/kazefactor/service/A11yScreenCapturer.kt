@@ -9,6 +9,9 @@ import androidx.annotation.RequiresApi
 import io.github.futurelesswindchan.kazefactor.engine.image.ArgbImage
 import io.github.futurelesswindchan.kazefactor.engine.loop.Frame
 import io.github.futurelesswindchan.kazefactor.engine.loop.ScreenCapturer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
@@ -19,15 +22,20 @@ import kotlin.coroutines.resume
  * `takeScreenshot` 返回的 `HardwareBuffer` 位于显存，不能直接读像素，
  * 必须先通过 `Bitmap.wrapHardwareBuffer` + `copy(ARGB_8888)` 转为内存位图，并立即关闭 `HardwareBuffer`。
  *
+ * 具有底层自平滑（Self-smoothing）特性：
+ * 内部记录 [lastCaptureTimeMs]，若两次截图发起间隔小于 [minIntervalMs]（默认 350ms），
+ * 会在协程中自动挂起等待剩余冷却时间，杜绝因调用间隔不足导致 AOSP 返回
+ * `ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT(3)` 而引起上层误判（军师拍板 2026-11-08）。
+ *
  * @param service 宿主无障碍服务
- * @param minIntervalMs 两次截图的最小间隔（毫秒），初值取 AOSP 常量 333 ms，第 5 步真机实测后校准
+ * @param minIntervalMs 两次截图的最小间隔（毫秒），初值取 AOSP 常量 333 ms，第 5 步真机实测后校准为 350 ms
  */
 class A11yScreenCapturer(
     private val service: AccessibilityService,
     override val minIntervalMs: Long = DEFAULT_MIN_INTERVAL_MS
 ) : ScreenCapturer {
 
-    /** 单次截图尝试的详细结果，供第 5 步真机测速记录失败码。 */
+    /** 单次截图尝试的详细结果，供真机调试记录失败码。 */
     sealed class AttemptResult {
         /** 截图成功。 */
         data class Success(val frame: BitmapFrame, val elapsedMs: Long) : AttemptResult()
@@ -40,6 +48,13 @@ class A11yScreenCapturer(
          */
         data class Failure(val errorCode: Int, val elapsedMs: Long) : AttemptResult()
     }
+
+    /** 互斥锁，确保多协程同时请求时不发生并发时序竞争与重叠调用 */
+    private val captureMutex = Mutex()
+
+    /** 上一次成功或发起截图的真实时间戳（SystemClock.elapsedRealtime） */
+    @Volatile
+    private var lastCaptureTimeMs: Long = 0L
 
     /** 最近一次截图失败的错误码（成功时置为 null），便于调试观察。 */
     @Volatile
@@ -58,14 +73,24 @@ class A11yScreenCapturer(
     }
 
     /**
-     * 执行一次截图并返回详细结果（含错误码与耗时），供第 5 步真机调试「连续截图 20 次」使用。
+     * 执行一次截图并返回详细结果（含错误码与耗时），自带冷却平滑与互斥保护。
      */
-    suspend fun captureWithDetail(): AttemptResult {
+    suspend fun captureWithDetail(): AttemptResult = captureMutex.withLock {
+        // 自平滑冷却：若距上次截图时间小于 minIntervalMs，自动挂起等待，绝不强行撞墙
+        val now = SystemClock.elapsedRealtime()
+        val timeSinceLast = now - lastCaptureTimeMs
+        if (timeSinceLast < minIntervalMs) {
+            val waitMs = minIntervalMs - timeSinceLast
+            delay(waitMs)
+        }
+
         val startMs = SystemClock.elapsedRealtime()
+        lastCaptureTimeMs = startMs
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             return AttemptResult.Failure(ERROR_UNSUPPORTED_SDK, 0L)
         }
-        return takeScreenshotApi30(startMs)
+        takeScreenshotApi30(startMs)
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -88,7 +113,7 @@ class A11yScreenCapturer(
                         } catch (_: Throwable) {
                             null
                         }
-                        val elapsed = android.os.SystemClock.elapsedRealtime() - startMs
+                        val elapsed = SystemClock.elapsedRealtime() - startMs
                         if (!cont.isActive) {
                             softwareBitmap?.recycle()
                             return
@@ -106,7 +131,7 @@ class A11yScreenCapturer(
                     }
 
                     override fun onFailure(errorCode: Int) {
-                        val elapsed = android.os.SystemClock.elapsedRealtime() - startMs
+                        val elapsed = SystemClock.elapsedRealtime() - startMs
                         if (cont.isActive) {
                             cont.resume(AttemptResult.Failure(errorCode, elapsed))
                         }
