@@ -1,6 +1,7 @@
 package io.github.futurelesswindchan.kazefactor.overlay
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +10,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,16 +21,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,8 +42,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.futurelesswindchan.kazefactor.OverlayController
@@ -47,7 +54,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * 悬浮窗主内容视图：根据 [OverlayUiState.mode] 渲染「小球 / 面板 / 运行中 / 命中 / 全屏引导」（架构方案第 2.2、5 节）。
+ * 悬浮窗主内容视图：根据 [OverlayUiState.mode] 严格互斥渲染单一面板（架构方案第 2.2、5 节，产品规格 2026-11-08）。
  *
  * @param viewModel 悬浮窗 ViewModel
  * @param onDragDelta 用户拖动小球或胶囊时的像素位移回调（由 `OverlayWindow` 更新 `WindowManager.LayoutParams`）
@@ -60,6 +67,7 @@ fun OverlayContent(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    // 严格单面板状态机互斥渲染，同一时刻只存在唯一形态视图
     when (uiState.mode) {
         OverlayMode.BUBBLE -> {
             BubbleView(
@@ -130,7 +138,7 @@ private fun BubbleView(
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .background(Color(0xE60284C7))
+            .background(Color(0xF00284C7))
             .border(2.dp, Color(0xFF7DD3FC), CircleShape)
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
@@ -151,7 +159,7 @@ private fun BubbleView(
 }
 
 /**
- * 形态 ②：展开面板（选配方、设频率、开始、重设位置、保存当前画面）。
+ * 形态 ②：展开主配置面板（横屏一屏化紧凑布局 + 94% 高遮蔽暗色底，修复 `07.jpg`、`08.jpg`）。
  */
 @Composable
 private fun PanelView(
@@ -166,16 +174,24 @@ private fun PanelView(
     onManualSetupClick: () -> Unit,
     onSaveScreenshotClick: () -> Unit
 ) {
+    val config = LocalConfiguration.current
+    val maxPanelHeight = (config.screenHeightDp - 16).coerceAtLeast(240).dp
+
     Surface(
-        modifier = Modifier.width(290.dp),
+        modifier = Modifier
+            .width(304.dp)
+            .heightIn(max = maxPanelHeight)
+            .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xF20F172A)
+        color = Color(0xF00F172A) // 94% 高遮蔽深空墨蓝，防止底层游戏文字透出干扰
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // 顶部标题栏（可拖动）
+            // 1. 顶部标题栏（可拖动 + 胶囊化热区按钮）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -192,35 +208,87 @@ private fun PanelView(
                     text = "KazeFactor 自动刷新",
                     color = Color(0xFF38BDF8),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    maxLines = 1
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = onCollapse) {
-                        Text("收起", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF1E293B))
+                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(6.dp))
+                            .clickable { onCollapse() }
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text("收起", color = Color(0xFFE2E8F0), fontSize = 11.sp, maxLines = 1)
                     }
-                    TextButton(onClick = onCloseOverlay) {
-                        Text("×", color = Color(0xFFF87171), fontSize = 14.sp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF1E293B))
+                            .border(1.dp, Color(0xFF475569), RoundedCornerShape(6.dp))
+                            .clickable { onCloseOverlay() }
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text("✕", color = Color(0xFFF87171), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
                 }
             }
 
-            // 配方选择列表
+            // 2. 常驻前置条件温馨提示
             Text(
-                text = "选择目标配方：",
-                color = Color(0xFFCBD5E1),
-                fontSize = 12.sp
+                text = "💡 请先在游戏内打开「挑战因子」窗口并开启下方绿开关~",
+                color = Color(0xFFFDE047),
+                fontSize = 11.sp,
+                lineHeight = 14.sp
             )
-            if (uiState.recipes.isEmpty()) {
+
+            // 3. 目标配方标题行（合并期望次数与上限，节省纵向空间）
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "暂无配方，请先在主应用内创建配方~",
-                    color = Color(0xFFFBBF24),
-                    fontSize = 12.sp
+                    text = "目标配方",
+                    color = Color(0xFFCBD5E1),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
                 )
+                if (uiState.selectedRecipe != null && uiState.expectedRefreshCount.isFinite()) {
+                    Text(
+                        text = "期望 ~${"%.1f".format(Locale.US, uiState.expectedRefreshCount)}次 · 上限 ${uiState.effectiveMaxCount ?: "无"}次",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            // 4. 配方选择列表（高度限制在 84dp 内，保证横屏一屏完整展示）
+            if (uiState.recipes.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF1E293B))
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "暂无配方，请先在主应用内创建配方~",
+                        color = Color(0xFFFBBF24),
+                        fontSize = 12.sp
+                    )
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 110.dp),
+                        .heightIn(max = 84.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(uiState.recipes, key = { it.id }) { recipe ->
@@ -232,112 +300,172 @@ private fun PanelView(
                                 .background(
                                     if (isSelected) Color(0xFF0369A1) else Color(0xFF1E293B)
                                 )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
                                 .clickable { onSelectRecipe(recipe) }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = recipe.name,
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                color = Color(0xFFF8FAFC),
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
                             if (isSelected) {
-                                Text("✓", color = Color(0xFF7DD3FC), fontSize = 13.sp)
+                                Text("✓", color = Color(0xFF7DD3FC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             }
 
-            // 期望次数提示
-            if (uiState.selectedRecipe != null && uiState.expectedRefreshCount.isFinite()) {
-                Text(
-                    text = "期望约 ${"%.1f".format(Locale.US, uiState.expectedRefreshCount)} 次 · 上限 ${uiState.effectiveMaxCount ?: "无"} 次",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 11.sp
-                )
-            }
-
-            // 频率滑块（1~10 次/秒，展示当前截图方式实际能达到的上限）
-            Column {
+            // 5. 刷新频率滑块 + 命中震动开关同行合并
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "频率：${uiState.frequencyPerSecond} 次/秒",
-                        color = Color.White,
-                        fontSize = 12.sp
+                        text = "频率：${uiState.frequencyPerSecond}/s (上限≈${"%.1f".format(Locale.US, uiState.actualMaxCapPerSecond)}/s)",
+                        color = Color(0xFFF8FAFC),
+                        fontSize = 11.sp,
+                        maxLines = 1
                     )
-                    Text(
-                        text = "无障碍上限 ≈ ${"%.1f".format(Locale.US, uiState.actualMaxCapPerSecond)}/s",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 11.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onVibrateChange(!uiState.vibrateOnHit) }
+                            .padding(horizontal = 2.dp)
+                    ) {
+                        Checkbox(
+                            checked = uiState.vibrateOnHit,
+                            onCheckedChange = { onVibrateChange(it) },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFF38BDF8),
+                                uncheckedColor = Color(0xFF94A3B8),
+                                checkmarkColor = Color(0xFF0F172A)
+                            ),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "命中震动",
+                            color = Color(0xFFCBD5E1),
+                            fontSize = 11.sp,
+                            maxLines = 1
+                        )
+                    }
                 }
                 Slider(
                     value = uiState.frequencyPerSecond.toFloat(),
                     onValueChange = { onFrequencyChange(it.roundToInt()) },
                     valueRange = 1f..10f,
                     steps = 8,
-                    modifier = Modifier.height(28.dp)
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFF38BDF8),
+                        activeTrackColor = Color(0xFF0284C7),
+                        inactiveTrackColor = Color(0xFF334155)
+                    ),
+                    modifier = Modifier.height(24.dp)
                 )
-            }
-
-            // 命中震动开关
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onVibrateChange(!uiState.vibrateOnHit) }
-            ) {
-                Checkbox(
-                    checked = uiState.vibrateOnHit,
-                    onCheckedChange = { onVibrateChange(it) },
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("命中时短震动提醒", color = Color(0xFFCBD5E1), fontSize = 12.sp)
             }
 
             if (uiState.statusMessage != null) {
                 Text(
                     text = uiState.statusMessage,
-                    color = Color(0xFFFBBF24),
-                    fontSize = 11.sp
+                    color = Color(0xFFFDE047),
+                    fontSize = 11.sp,
+                    maxLines = 2
                 )
             }
 
-            // 主按钮：开始自动刷新
+            // 6. 主按钮：开始自动刷新（固定高度与高对比配色）
             Button(
                 onClick = onStartClick,
                 enabled = uiState.selectedRecipe != null && !uiState.isBusyCalibrating,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                modifier = Modifier.fillMaxWidth()
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF0284C7),
+                    contentColor = Color(0xFFF8FAFC),
+                    disabledContainerColor = Color(0xFF1E293B),
+                    disabledContentColor = Color(0xFF64748B)
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp)
             ) {
                 Text(
-                    text = if (uiState.isBusyCalibrating) "正在校准位置…" else "开始自动刷新",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    text = if (uiState.isBusyCalibrating) "正在准备位置…" else "▶ 开始自动刷新",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 
-            // 底部辅助按钮：重新设置位置 + 保存当前画面
+            // 7. 底部辅助按钮：重新校准 + 导出画面（高对比实底描边，绝不隐身或折行）
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
                     onClick = onManualSetupClick,
-                    modifier = Modifier.weight(1f)
+                    enabled = !uiState.isBusyCalibrating,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF1E293B),
+                        contentColor = Color(0xFFE0F2FE),
+                        disabledContainerColor = Color(0x801E293B),
+                        disabledContentColor = Color(0xFF64748B)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF475569)),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(34.dp)
                 ) {
-                    Text("重设位置", color = Color(0xFF7DD3FC), fontSize = 11.sp)
+                    Text(
+                        text = "🎯 重新校准",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
                 OutlinedButton(
                     onClick = onSaveScreenshotClick,
-                    modifier = Modifier.weight(1f)
+                    enabled = !uiState.isBusyCalibrating,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF1E293B),
+                        contentColor = Color(0xFFE0F2FE),
+                        disabledContainerColor = Color(0x801E293B),
+                        disabledContentColor = Color(0xFF64748B)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF475569)),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(34.dp)
                 ) {
-                    Text("保存当前画面", color = Color(0xFFCBD5E1), fontSize = 11.sp)
+                    Text(
+                        text = "📷 导出画面",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
         }
@@ -345,7 +473,7 @@ private fun PanelView(
 }
 
 /**
- * 形态 ③：运行中/暂停小胶囊（展示刷新次数、速度、暂停原因与操作按钮）。
+ * 形态 ③：运行中/暂停小胶囊（高遮蔽底色 + 明确脱困按钮，修复 `03.jpg`）。
  */
 @Composable
 private fun RunningCapsuleView(
@@ -360,8 +488,9 @@ private fun RunningCapsuleView(
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xE60F172A),
+        color = Color(0xF00F172A),
         modifier = Modifier
+            .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(16.dp))
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
                     change.consume()
@@ -370,12 +499,12 @@ private fun RunningCapsuleView(
             }
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val speedText = if (uiState.actualSpeedPerSec > 0f) {
                     "${"%.1f".format(Locale.US, uiState.actualSpeedPerSec)}/s"
@@ -388,35 +517,68 @@ private fun RunningCapsuleView(
                     } else {
                         "🔄 第 ${uiState.refreshCount} 次 ($speedText)"
                     },
-                    color = Color.White,
+                    color = Color(0xFFF8FAFC),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
+                    fontSize = 13.sp,
+                    maxLines = 1
                 )
 
                 if (!paused) {
-                    TextButton(onClick = onPause) {
-                        Text("暂停", color = Color(0xFFFBBF24), fontSize = 12.sp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF1E293B))
+                            .border(1.dp, Color(0xFFFBBF24), RoundedCornerShape(6.dp))
+                            .clickable { onPause() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("暂停", color = Color(0xFFFDE047), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
                 } else {
-                    TextButton(onClick = onResume) {
-                        Text("继续", color = Color(0xFF4ADE80), fontSize = 12.sp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF1E293B))
+                            .border(1.dp, Color(0xFF4ADE80), RoundedCornerShape(6.dp))
+                            .clickable { onResume() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("继续", color = Color(0xFF4ADE80), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
                 }
 
-                TextButton(onClick = onStop) {
-                    Text("停止", color = Color(0xFFF87171), fontSize = 12.sp)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF1E293B))
+                        .border(1.dp, Color(0xFFF87171), RoundedCornerShape(6.dp))
+                        .clickable { onStop() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("⏹ 停止", color = Color(0xFFF87171), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                 }
             }
 
             if (uiState.pauseReason != null) {
                 Text(
-                    text = uiState.pauseReason.toDisplayMessage(),
-                    color = Color(0xFFFBBF24),
-                    fontSize = 11.sp
+                    text = "⚠️ ${uiState.pauseReason.toDisplayMessage()}",
+                    color = Color(0xFFFDE047),
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onManualSetup) {
-                        Text("手动设置位置", color = Color(0xFF38BDF8), fontSize = 11.sp)
+                    OutlinedButton(
+                        onClick = onManualSetup,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF1E293B),
+                            contentColor = Color(0xFFE0F2FE)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFF38BDF8)),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("🎯 手动对齐方框", fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
                 }
             }
@@ -436,7 +598,7 @@ private fun HitExpandedView(
 ) {
     Surface(
         modifier = Modifier
-            .width(300.dp)
+            .width(304.dp)
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
                     change.consume()
@@ -444,7 +606,7 @@ private fun HitExpandedView(
                 }
             },
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xF20F172A)
+        color = Color(0xF00F172A)
     ) {
         Column(
             modifier = Modifier
@@ -456,7 +618,8 @@ private fun HitExpandedView(
                 text = "🎉 命中目标配方！（共刷 ${uiState.refreshCount} 次）",
                 color = Color(0xFF4ADE80),
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                maxLines = 1
             )
 
             Row(
@@ -485,7 +648,8 @@ private fun HitExpandedView(
                             text = factor.name,
                             color = Color.White,
                             fontSize = 10.sp,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -497,16 +661,29 @@ private fun HitExpandedView(
             ) {
                 OutlinedButton(
                     onClick = onContinue,
-                    modifier = Modifier.weight(1f)
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF1E293B),
+                        contentColor = Color(0xFFE0F2FE)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF475569)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp)
                 ) {
-                    Text("继续刷", color = Color(0xFF7DD3FC), fontSize = 12.sp)
+                    Text("继续刷", fontSize = 12.sp, maxLines = 1, softWrap = false)
                 }
                 Button(
                     onClick = onFinish,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E)),
-                    modifier = Modifier.weight(1f)
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp)
                 ) {
-                    Text("完成", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("完成", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, softWrap = false)
                 }
             }
         }

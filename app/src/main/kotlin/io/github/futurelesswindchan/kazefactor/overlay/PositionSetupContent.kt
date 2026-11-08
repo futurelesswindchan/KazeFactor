@@ -1,6 +1,7 @@
 package io.github.futurelesswindchan.kazefactor.overlay
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,6 +11,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -249,41 +251,44 @@ private fun ManualSetupScreen(
             drawLine(crossColor, Offset(tx, ty - 24f), Offset(tx, ty + 24f), strokeWidth = 3f)
         }
 
-        // 3. 左上角操作说明面版
+        // 3. 左上角操作说明面板（94% 高遮蔽底色 + 单行防挤压按钮，修复 04.jpg）
         Surface(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp)
-                .width(300.dp),
+                .width(336.dp)
+                .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(14.dp)),
             shape = RoundedCornerShape(14.dp),
-            color = Color(0xE61E293B)
+            color = Color(0xF00F172A)
         ) {
             Column(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "手动设置位置（确保开关已打开）",
-                    color = Color.White,
+                    text = "手动对齐位置（请先打开挑战因子开关）",
+                    color = Color(0xFFF8FAFC),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    maxLines = 1
                 )
                 Text(
-                    text = "① 拖动上方 4 格轮廓（或拉左右圆点）盖住 4 个因子方框，松手自动吸附；\n② 点击黄色准星对准「刷新按钮」。",
+                    text = "① 拖动上方 4 格轮廓（或拉左右圆点）盖住 4 个因子方框，松手自动吸附；\n② 点击下方黄色准星对准「刷新按钮」。",
                     color = Color(0xFFCBD5E1),
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
                 if (setup.snapError != null) {
                     Text(
-                        text = setup.snapError,
-                        color = Color(0xFFF87171),
+                        text = "⚠️ ${setup.snapError}",
+                        color = Color(0xFFFDE047),
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 16.sp
                     )
                 } else if (setup.snappedCalibration != null) {
                     Text(
-                        text = "✓ 已自动吸附到 4 个槽位方框边缘！",
+                        text = "✓ 已对准 4 个槽位方框！点击「下一步」核对结果~",
                         color = Color(0xFF4ADE80),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -295,23 +300,65 @@ private fun ManualSetupScreen(
                 ) {
                     OutlinedButton(
                         onClick = onCancel,
-                        modifier = Modifier.weight(1f)
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF1E293B),
+                            contentColor = Color(0xFFE0F2FE)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFF475569)),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(0.85f)
+                            .height(36.dp)
                     ) {
-                        Text("取消", color = Color.White, fontSize = 12.sp)
+                        Text("取消", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
-                    Button(
+                    OutlinedButton(
                         onClick = onPerformSnap,
                         enabled = !setup.isSnapping,
-                        modifier = Modifier.weight(1f)
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF1E293B),
+                            contentColor = Color(0xFF38BDF8),
+                            disabledContainerColor = Color(0x801E293B),
+                            disabledContentColor = Color(0xFF64748B)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFF0284C7)),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1.1f)
+                            .height(36.dp)
                     ) {
-                        Text(if (setup.isSnapping) "吸附中…" else "重新吸附", fontSize = 12.sp)
+                        Text(
+                            text = if (setup.isSnapping) "吸附中…" else "🧲 重新吸附",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
                     Button(
                         onClick = onProceedToPreview,
-                        enabled = setup.snappedCalibration != null,
-                        modifier = Modifier.weight(1f)
+                        enabled = !setup.isSnapping,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (setup.snappedCalibration != null) Color(0xFF22C55E) else Color(0xFF0284C7),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF1E293B),
+                            disabledContentColor = Color(0xFF64748B)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1.1f)
+                            .height(36.dp)
                     ) {
-                        Text("下一步", fontSize = 12.sp)
+                        Text(
+                            text = "下一步 ➔",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
                 }
             }
@@ -362,14 +409,15 @@ private fun ConfirmPreviewScreen(
             drawCircle(Color(0xFFFACC15), radius = 12f, center = Offset(tx, ty), style = Stroke(width = 3f))
         }
 
-        // 3. 确认卡片（放在屏幕左侧或底部，不遮挡右侧槽位画框）
+        // 3. 确认卡片（放在屏幕左侧，不遮挡右侧槽位画框）
         Surface(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(20.dp)
-                .width(340.dp),
+                .width(348.dp)
+                .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(16.dp)),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xF01E293B)
+            color = Color(0xF00F172A)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -377,18 +425,20 @@ private fun ConfirmPreviewScreen(
             ) {
                 Text(
                     text = "请确认识别位置与因子是否正确",
-                    color = Color.White,
+                    color = Color(0xFFF8FAFC),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    maxLines = 1
                 )
                 Text(
                     text = if (preview.canConfirm) {
-                        "核对右侧绿框是否对准 4 个槽位，且下方识别出的 4 个因子与游戏内一致："
+                        "请核对右侧绿框是否对准 4 个槽位，且下方识别出的 4 个因子与游戏内一致："
                     } else {
-                        "存在未识别出的槽位（请确保挑战因子开关已打开且未被遮挡）："
+                        "⚠️ 存在未识别出的槽位（请确保挑战因子开关已打开且未被遮挡）："
                     },
-                    color = Color(0xFFCBD5E1),
-                    fontSize = 12.sp
+                    color = if (preview.canConfirm) Color(0xFFCBD5E1) else Color(0xFFFDE047),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
                 )
 
                 // 4 个槽位识别结果展示
@@ -402,7 +452,7 @@ private fun ConfirmPreviewScreen(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                                .background(Color(0xFF1E293B), RoundedCornerShape(8.dp))
                                 .border(
                                     width = 1.dp,
                                     color = if (factor != null) Color(0xFF38BDF8) else Color(0xFFEF4444),
@@ -433,6 +483,7 @@ private fun ConfirmPreviewScreen(
                                     color = Color(0xFFF87171),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
                                     modifier = Modifier.padding(vertical = 12.dp)
                                 )
                             }
@@ -447,28 +498,55 @@ private fun ConfirmPreviewScreen(
                 ) {
                     OutlinedButton(
                         onClick = onCancel,
-                        modifier = Modifier.weight(1f)
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF1E293B),
+                            contentColor = Color(0xFFE0F2FE)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFF475569)),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(0.85f)
+                            .height(36.dp)
                     ) {
-                        Text("取消", color = Color.White, fontSize = 12.sp)
+                        Text("取消", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
                     Button(
                         onClick = onReject,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                        modifier = Modifier.weight(1.2f)
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1.15f)
+                            .height(36.dp)
                     ) {
                         Text(
-                            text = if (preview.canConfirm) "不对" else "不对，重新设置",
+                            text = if (preview.canConfirm) "不对，重调" else "重新调整位置",
                             color = Color.White,
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                     if (preview.canConfirm) {
                         Button(
                             onClick = onAccept,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E)),
-                            modifier = Modifier.weight(1.2f)
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .weight(1.15f)
+                                .height(36.dp)
                         ) {
-                            Text("对，开始", color = Color.White, fontSize = 12.sp)
+                            Text(
+                                text = "✓ 对，开始",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                     }
                 }

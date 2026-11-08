@@ -36,19 +36,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.futurelesswindchan.kazefactor.OverlayController
 import io.github.futurelesswindchan.kazefactor.service.KazeAccessibilityService
 
 /**
- * 权限引导与「悬浮窗模式」启动界面（架构方案第 2.2、7 节）。
+ * 权限引导与「悬浮窗模式」启动界面（架构方案第 2.2、7 节，产品规格 2026-11-08）。
  *
  * 重点覆盖：
- * 1. 无障碍服务状态检测与直达设置；
- * 2. Android 13+「受限设置」解除引导（从浏览器/文件管理器安装 APK 时无障碍开关默认置灰，需先到应用信息页右上角菜单开启）；
+ * 1. Step 1 → Step 2 纵向全宽按钮流（消除双按钮并排换行挤压，修复 `06.jpg`）；
+ * 2. Android 13+「受限设置」解除引导（直达应用信息页）；
  * 3. 国产系统后台省电限制文字提示；
- * 4. Android 8~10（< API 30）不支持无障碍自动刷新的友好说明；
- * 5. 开启/关闭悬浮窗模式入口。
+ * 4. Android 8~10（< API 30）不支持无障碍自动刷新的友好说明。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +64,13 @@ fun PermissionGuideScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("自动刷新 · 权限与悬浮窗") },
+                title = {
+                    Text(
+                        text = "自动刷新 · 权限与悬浮窗",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -111,7 +117,7 @@ fun PermissionGuideScreen(
                 }
             }
 
-            // 2. 当前服务与悬浮窗状态卡片
+            // 2. 当前服务与悬浮窗状态卡片（Step 1 -> Step 2 纵向全宽按钮流）
             Card(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -141,40 +147,85 @@ fun PermissionGuideScreen(
                             }
                         ) {
                             Text(
-                                text = if (isServiceConnected) "已开启 ✓" else "未开启",
+                                text = if (isServiceConnected) "已就绪 ✓" else "未开启",
                                 style = MaterialTheme.typography.labelMedium,
+                                color = if (isServiceConnected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }
 
                     Text(
-                        text = "本工具通过 Android 无障碍服务完成屏幕截图、识别 4 个槽位、点击刷新按钮以及展示游戏内悬浮窗，无需额外申请悬浮窗权限，也不联网。",
+                        text = "本工具通过 Android 无障碍服务完成屏幕识别与自动点击，不联网、无需额外申请悬浮窗权限。",
                         style = MaterialTheme.typography.bodyMedium
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("前往无障碍设置")
+                    val openAccessibilitySettings = {
+                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
+                        context.startActivity(intent)
+                    }
 
+                    // 步骤 ①：开启无障碍服务
+                    if (!isServiceConnected) {
                         Button(
-                            onClick = { OverlayController.toggle() },
-                            enabled = isServiceConnected && isSupportedSdk,
-                            modifier = Modifier.weight(1f)
+                            onClick = openAccessibilitySettings,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (isOverlayShowing) "关闭悬浮窗" else "开启悬浮窗模式")
+                            Text(
+                                text = "① 前往无障碍设置开启服务",
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = openAccessibilitySettings,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "✓ ① 无障碍服务已开启（点击可重设）",
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    // 步骤 ②：开启/收起悬浮窗模式
+                    if (!isOverlayShowing) {
+                        Button(
+                            onClick = { OverlayController.requestShow() },
+                            enabled = isServiceConnected && isSupportedSdk,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (isServiceConnected) {
+                                    "🚀 ② 开启悬浮窗模式"
+                                } else {
+                                    "② 开启悬浮窗（需先完成步骤①）"
+                                },
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { OverlayController.requestHide() },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "✨ 悬浮球运行中（点击收起悬浮窗）",
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
@@ -211,9 +262,13 @@ fun PermissionGuideScreen(
                             }
                             context.startActivity(intent)
                         },
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("打开本应用信息页（解除受限设置）")
+                        Text(
+                            text = "打开本应用信息页（解除受限设置）",
+                            maxLines = 1
+                        )
                     }
                 }
             }
@@ -259,9 +314,9 @@ fun PermissionGuideScreen(
                     )
                     Text(
                         text = "1. 开启无障碍服务后，点击上方「开启悬浮窗模式」，屏幕左上角会出现「风」悬浮球；\n" +
-                            "2. 进入《元气骑士》联机模式 → 打开「挑战因子」配置界面，并把挑战因子开关打开；\n" +
-                            "3. 点击「风」悬浮球展开面板，选择配方并点击「开始自动刷新」；\n" +
-                            "4. 首次使用会自动识别位置并弹出确认预览，核对 4 个因子无误后点击「对，开始」即可自动刷到命中！",
+                            "2. 进入《元气骑士》联机模式 → 打开「挑战因子」配置界面，并把下方绿色挑战因子开关打开；\n" +
+                            "3. 点击「风」悬浮球展开面板，选择配方并点击「▶ 开始自动刷新」；\n" +
+                            "4. 首次使用会自动识别位置并弹出确认预览，核对 4 个因子无误后点击「✓ 对，开始」即可自动刷到命中！",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
