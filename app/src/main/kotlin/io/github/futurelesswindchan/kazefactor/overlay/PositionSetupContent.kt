@@ -297,7 +297,7 @@ private fun ManualSetupScreen(
                 )
                 if (setup.snapError != null) {
                     Text(
-                        text = "⚠️ ${setup.snapError}",
+                        text = setup.snapError,
                         color = Color(0xFFFDE047),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
@@ -347,7 +347,7 @@ private fun ManualSetupScreen(
                             .height(36.dp)
                     ) {
                         Text(
-                            text = if (setup.isSnapping) "吸附中…" else "🧲 重新吸附",
+                            text = if (setup.isSnapping) "吸附中…" else "重新吸附",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
@@ -370,7 +370,7 @@ private fun ManualSetupScreen(
                             .height(36.dp)
                     ) {
                         Text(
-                            text = "下一步 ➔",
+                            text = "下一步",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -451,7 +451,7 @@ private fun ConfirmPreviewScreen(
                     text = if (preview.canConfirm) {
                         "请核对右侧绿框是否对准 4 个槽位，且下方识别出的 4 个因子与游戏内一致："
                     } else {
-                        "⚠️ 存在未识别出的槽位（请确保挑战因子开关已打开且未被遮挡）："
+                        "存在未识别出的槽位（请确保挑战因子开关已打开且未被遮挡）："
                     },
                     color = if (preview.canConfirm) Color(0xFFCBD5E1) else Color(0xFFFDE047),
                     fontSize = 12.sp,

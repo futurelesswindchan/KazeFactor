@@ -57,25 +57,11 @@ fun RecipeListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "KazeFactor",
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                text = "配方管理",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        text = "KazeFactor",
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
                 },
                 actions = {
                     TextButton(onClick = { onNavigateToRecipeCode(null) }) {
@@ -160,8 +146,7 @@ private fun AutoRefreshLaunchBanner(
                 isOverlayShowing -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
                 else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
             }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        )
     ) {
         Column(
             modifier = Modifier
@@ -177,9 +162,9 @@ private fun AutoRefreshLaunchBanner(
             ) {
                 Text(
                     text = when {
-                        !isServiceConnected -> "⚠️ 自动刷新服务未开启"
-                        isOverlayShowing -> "✨ 「风」悬浮球运行中"
-                        else -> "🚀 自动刷新已就绪"
+                        !isServiceConnected -> "自动刷新服务未开启"
+                        isOverlayShowing -> "悬浮球运行中"
+                        else -> "自动刷新已就绪"
                     },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -203,9 +188,9 @@ private fun AutoRefreshLaunchBanner(
 
             Text(
                 text = when {
-                    !isServiceConnected -> "开启无障碍服务后，即可在游戏内呼出「风」悬浮球自动刷因子~"
-                    isOverlayShowing -> "切入《元气骑士》联机模式挑战因子界面，点击屏幕边缘「风」悬浮球即可开刷！"
-                    else -> "悬浮球待命中，点击下方按钮呼出悬浮球，即可切入游戏配置界面开刷！"
+                    !isServiceConnected -> "开启无障碍服务后，即可在游戏内呼出悬浮球自动刷因子"
+                    isOverlayShowing -> "切入《元气骑士》联机模式挑战因子界面，点击屏幕边缘悬浮球即可开刷"
+                    else -> "悬浮球待命中，点击下方按钮呼出悬浮球，即可切入游戏配置界面开刷"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -224,14 +209,14 @@ private fun AutoRefreshLaunchBanner(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "📖 3 步极简使用步骤：",
+                            text = "3 步极简使用步骤：",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "1. 点击下方按钮开启悬浮窗（屏幕会出现「风」字小圆球）；\n" +
-                                "2. 进入《元气骑士》联机房间 → 打开「挑战因子」配置窗口（记得打开下方绿色开关）；\n" +
-                                "3. 点击悬浮球展开面板，选好配方点「▶ 开始自动刷新」即可！",
+                            text = "1. 点击下方按钮开启悬浮窗（屏幕会出现小圆球）；\n" +
+                                "2. 进入《元气骑士》联机建房界面 → 打开「挑战因子」开关，确保显示四个因子而不是问号；\n" +
+                                "3. 点击悬浮球展开面板，选好配方点「开始自动刷新」即可！",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.textTertiary,
                             lineHeight = 16.sp
@@ -247,7 +232,7 @@ private fun AutoRefreshLaunchBanner(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("👉 前往开启无障碍服务", fontWeight = FontWeight.Bold)
+                    Text("前往开启无障碍服务", fontWeight = FontWeight.Bold)
                 }
             } else {
                 Row(
@@ -260,7 +245,7 @@ private fun AutoRefreshLaunchBanner(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = if (isOverlayShowing) "收起悬浮窗" else "✨ 开启悬浮窗模式",
+                            text = if (isOverlayShowing) "收起悬浮窗" else "开启悬浮窗模式",
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
                         )
@@ -289,11 +274,6 @@ private fun EmptyState(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "📦",
-            style = MaterialTheme.typography.displayLarge
-        )
-        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "还没有配方",
             style = MaterialTheme.typography.headlineMedium,
@@ -397,7 +377,7 @@ private fun RecipeCard(
                 color = MaterialTheme.colorScheme.textTertiary
             )
 
-            // 配方内已选（想要）与排除（不想要）的因子图标与文字名称预览
+            // 配方内已选（想要）与排除（不想要）的因子图标预览（仅纯图标与绿/红框，无勾叉遮挡）
             if (previewFactors.isNotEmpty()) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -407,42 +387,11 @@ private fun RecipeCard(
                         items = previewFactors,
                         key = { it.first.id }
                     ) { (factor, state) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (state == FactorSelectionState.WANTED) {
-                                        Color(0x1F22C55E)
-                                    } else {
-                                        Color(0x1FEF4444)
-                                    }
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (state == FactorSelectionState.WANTED) {
-                                        Color(0xFF22C55E)
-                                    } else {
-                                        Color(0xFFEF4444)
-                                    },
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
-                        ) {
-                            CompactFactorChip(
-                                factor = factor,
-                                selectionState = state,
-                                size = 28.dp
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = factor.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1
-                            )
-                        }
+                        CompactFactorChip(
+                            factor = factor,
+                            selectionState = state,
+                            size = 38.dp
+                        )
                     }
                 }
             }

@@ -220,7 +220,7 @@ private fun FactorListItem(
                         modifier = Modifier.size(34.dp)
                     )
                 } else {
-                    Text("🎲", style = MaterialTheme.typography.bodyLarge)
+                    Text("?", style = MaterialTheme.typography.bodyLarge)
                 }
             }
 
@@ -300,7 +300,7 @@ private fun FactorGridItem(
                 modifier = Modifier.fillMaxSize(0.78f)
             )
         } else {
-            Text("🎲", style = MaterialTheme.typography.bodyLarge)
+            Text("?", style = MaterialTheme.typography.bodyLarge)
         }
 
         SelectionBadge(
@@ -344,6 +344,8 @@ private fun SelectionBadge(
 
 /**
  * 小巧紧凑型因子图标块（用于编辑页置顶已选栏与主界面配方卡片预览）
+ *
+ * 只保留因子图标与绿/红框，不叠加勾叉角标以避免遮挡图标细节。
  *
  * @param factor 挑战因子
  * @param selectionState 选中状态（WANTED 绿框 / UNWANTED 红框）
@@ -390,16 +392,11 @@ fun CompactFactorChip(
                 painter = factorPainter,
                 contentDescription = factor.name,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(0.8f)
+                modifier = Modifier.fillMaxSize(0.84f)
             )
         } else {
-            Text("🎲", style = MaterialTheme.typography.bodySmall)
+            Text("?", style = MaterialTheme.typography.bodySmall)
         }
-
-        SelectionBadge(
-            selectionState = selectionState,
-            modifier = Modifier.align(Alignment.BottomEnd)
-        )
     }
 }
 

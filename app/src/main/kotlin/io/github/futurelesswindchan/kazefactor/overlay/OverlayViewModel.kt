@@ -467,7 +467,7 @@ class OverlayViewModel(
                             manualSetup = current.manualSetup?.copy(
                                 isSnapping = false,
                                 snappedCalibration = null,
-                                snapError = "未自动吸附到方框边缘，请微调蓝框对准 4 个因子槽位，或直接点「下一步」核对识别结果"
+                                snapError = "看起来自动吸附出了一点小问题，如果确认框选无误请直接点击下一步"
                             )
                         )
                     }

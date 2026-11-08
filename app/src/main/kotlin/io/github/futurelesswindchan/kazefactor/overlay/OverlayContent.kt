@@ -240,7 +240,7 @@ private fun PanelView(
 
             // 2. 常驻前置条件温馨提示
             Text(
-                text = "💡 请先在游戏内打开「挑战因子」窗口并开启下方绿开关~",
+                text = "请在建房界面打开挑战因子开关，并确保没有显示四个问号",
                 color = Color(0xFFFDE047),
                 fontSize = 11.sp,
                 lineHeight = 14.sp
@@ -406,7 +406,7 @@ private fun PanelView(
                     .height(38.dp)
             ) {
                 Text(
-                    text = if (uiState.isBusyCalibrating) "正在准备位置…" else "▶ 开始自动刷新",
+                    text = if (uiState.isBusyCalibrating) "正在准备位置…" else "开始自动刷新",
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -436,7 +436,7 @@ private fun PanelView(
                         .height(34.dp)
                 ) {
                     Text(
-                        text = "🎯 重新校准",
+                        text = "重新校准",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -460,7 +460,7 @@ private fun PanelView(
                         .height(34.dp)
                 ) {
                     Text(
-                        text = "📷 导出画面",
+                        text = "导出画面",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -513,9 +513,9 @@ private fun RunningCapsuleView(
                 }
                 Text(
                     text = if (paused) {
-                        "⏸ 已刷 ${uiState.refreshCount} 次"
+                        "已刷 ${uiState.refreshCount} 次"
                     } else {
-                        "🔄 第 ${uiState.refreshCount} 次 ($speedText)"
+                        "第 ${uiState.refreshCount} 次 ($speedText)"
                     },
                     color = Color(0xFFF8FAFC),
                     fontWeight = FontWeight.Bold,
@@ -555,13 +555,13 @@ private fun RunningCapsuleView(
                         .clickable { onStop() }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text("⏹ 停止", color = Color(0xFFF87171), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                    Text("停止", color = Color(0xFFF87171), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                 }
             }
 
             if (uiState.pauseReason != null) {
                 Text(
-                    text = "⚠️ ${uiState.pauseReason.toDisplayMessage()}",
+                    text = uiState.pauseReason.toDisplayMessage(),
                     color = Color(0xFFFDE047),
                     fontSize = 11.sp,
                     lineHeight = 15.sp
@@ -578,7 +578,7 @@ private fun RunningCapsuleView(
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.height(32.dp)
                     ) {
-                        Text("🎯 手动对齐方框", fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                        Text("手动对齐方框", fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
                 }
             }

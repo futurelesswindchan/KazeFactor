@@ -144,7 +144,7 @@ private fun ImportCodeContent(viewModel: RecipeCodeViewModel) {
             )
         ) {
             Text(
-                text = "📋 粘贴从其他设备分享的口令码，快速导入配方",
+                text = "粘贴从其他设备分享的口令码，快速导入配方",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.padding(12.dp)

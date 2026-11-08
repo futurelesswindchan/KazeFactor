@@ -103,7 +103,7 @@ fun PermissionGuideScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "⚠️ 当前系统版本暂不支持自动刷新",
+                            text = "当前系统版本暂不支持自动刷新",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onErrorContainer
@@ -147,7 +147,7 @@ fun PermissionGuideScreen(
                             }
                         ) {
                             Text(
-                                text = if (isServiceConnected) "已就绪 ✓" else "未开启",
+                                text = if (isServiceConnected) "已就绪" else "未开启",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (isServiceConnected) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -191,7 +191,7 @@ fun PermissionGuideScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "✓ ① 无障碍服务已开启（点击可重设）",
+                                text = "① 无障碍服务已开启（点击可重设）",
                                 maxLines = 1
                             )
                         }
@@ -207,7 +207,7 @@ fun PermissionGuideScreen(
                         ) {
                             Text(
                                 text = if (isServiceConnected) {
-                                    "🚀 ② 开启悬浮窗模式"
+                                    "② 开启悬浮窗模式"
                                 } else {
                                     "② 开启悬浮窗（需先完成步骤①）"
                                 },
@@ -222,7 +222,7 @@ fun PermissionGuideScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "✨ 悬浮球运行中（点击收起悬浮窗）",
+                                text = "悬浮球运行中（点击收起悬浮窗）",
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1
                             )
@@ -290,7 +290,7 @@ fun PermissionGuideScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "部分系统（OriginOS、MIUI/HyperOS、ColorOS、HarmonyOS 等）会在切入游戏后清理后台，导致无障碍服务自己关掉。\n\n建议在系统设置中将 KazeFactor：\n• 电池/省电策略设为「无限制 / 允许后台高耗电」；\n• 在最近任务列表中给 KazeFactor 加锁。",
+                        text = "部分系统会在切入游戏后清理后台，导致无障碍服务自己关掉。\n\n建议在系统设置中将 KazeFactor：\n• 电池/省电策略设为「无限制 / 允许后台高耗电」；\n• 在最近任务列表中给 KazeFactor 加锁。",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -313,10 +313,10 @@ fun PermissionGuideScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "1. 开启无障碍服务后，点击上方「开启悬浮窗模式」，屏幕左上角会出现「风」悬浮球；\n" +
-                            "2. 进入《元气骑士》联机模式 → 打开「挑战因子」配置界面，并把下方绿色挑战因子开关打开；\n" +
-                            "3. 点击「风」悬浮球展开面板，选择配方并点击「▶ 开始自动刷新」；\n" +
-                            "4. 首次使用会自动识别位置并弹出确认预览，核对 4 个因子无误后点击「✓ 对，开始」即可自动刷到命中！",
+                        text = "1. 开启无障碍服务后，点击上方「开启悬浮窗模式」，屏幕上会出现悬浮球；\n" +
+                            "2. 进入《元气骑士》联机模式建房界面 → 打开「挑战因子」开关，确保显示四个因子而非问号；\n" +
+                            "3. 点击悬浮球展开面板，选择配方并点击「开始自动刷新」；\n" +
+                            "4. 首次使用会自动识别位置并弹出确认预览，核对 4 个因子无误后点击「对，开始」即可自动刷到命中！",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
