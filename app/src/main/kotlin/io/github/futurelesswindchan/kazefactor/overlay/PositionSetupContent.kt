@@ -1,6 +1,5 @@
 package io.github.futurelesswindchan.kazefactor.overlay
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,9 +41,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.futurelesswindchan.kazefactor.engine.vision.ReferenceLayout
@@ -56,7 +54,7 @@ import io.github.futurelesswindchan.kazefactor.ui.util.FactorIconMapper
 import kotlin.math.abs
 
 /**
- * 全屏手动位置引导与确认预览视图（架构方案第 2.2、3.4.3、3.4.6 节）。
+ * 全屏手动位置引导与确认预览视图。
  */
 @Composable
 fun PositionSetupContent(
@@ -99,11 +97,13 @@ private enum class DragMode {
 }
 
 /**
- * 手动引导全屏界面：
- * 1. 底层展示冻结的游戏截图；
- * 2. 画一条「4 个等大、等间距的方框」轮廓，用户可整体拖动或拉左右两端；
- * 3. 松手后自动触发 [Snapper] 吸附，成功变绿、失败变红；
- * 4. 点击刷新按钮记录点击坐标。
+ * 手动位置引导全屏界面。
+ *
+ * 1. 底层展示冻结的游戏画面截图；
+ * 2. 绘制 4 个等大、等间距的正方形槽位轮廓，支持用户整体拖动或拉伸左右两端调整缩放；
+ * 3. 松手后自动触发 [Snapper] 边缘吸附，吸附成功显示绿色轮廓，未对准显示红色轮廓；
+ * 4. 点击轮廓下方区域记录刷新按钮点击坐标；
+ * 5. 根据画布实际渲染尺寸与截图物理尺寸的比例执行双向坐标转换，确保手势与底图严格对齐。
  */
 @Composable
 private fun ManualSetupScreen(
@@ -121,6 +121,16 @@ private fun ManualSetupScreen(
     val latestOnPerformSnap by rememberUpdatedState(onPerformSnap)
     val imageBitmap = remember(setup.screenshot) { setup.screenshot.asImageBitmap() }
 
+    var canvasSize by remember(setup.screenshot) {
+        mutableStateOf(IntSize(setup.screenshot.width, setup.screenshot.height))
+    }
+    val canvasW = canvasSize.width.takeIf { it > 0 }?.toFloat() ?: setup.screenshot.width.toFloat()
+    val canvasH = canvasSize.height.takeIf { it > 0 }?.toFloat() ?: setup.screenshot.height.toFloat()
+    val ratioX = setup.screenshot.width.toFloat() / canvasW
+    val ratioY = setup.screenshot.height.toFloat() / canvasH
+    val latestRatioX by rememberUpdatedState(ratioX)
+    val latestRatioY by rememberUpdatedState(ratioY)
+
     Box(modifier = Modifier.fillMaxSize()) {
         // 1. 冻结的游戏画面底图
         Image(
@@ -135,15 +145,21 @@ private fun ManualSetupScreen(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
+                .onSizeChanged {
+                    if (it.width > 0 && it.height > 0) {
+                        canvasSize = it
+                    }
+                }
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
-                        // 若点击点在 4 格轮廓下方区域，则更新刷新按钮点击坐标
+                        val screenX = offset.x * latestRatioX
+                        val screenY = offset.y * latestRatioY
                         val current = latestSetup.userFrame
                         val scale = current.estimatedScaleX
                         val frameBottom = current.top +
                             (Snapper.REF_FRAME_BOTTOM - Snapper.REF_FRAME_TOP) * scale
-                        if (offset.y > frameBottom + 20f) {
-                            latestOnUpdateTapPoint(offset.x, offset.y)
+                        if (screenY > frameBottom + 20f * latestRatioY) {
+                            latestOnUpdateTapPoint(screenX, screenY)
                         }
                     }
                 }
@@ -151,38 +167,43 @@ private fun ManualSetupScreen(
                     var currentFrame = latestSetup.userFrame
                     detectDragGestures(
                         onDragStart = { startOffset ->
-                            // 始终从最新状态（含上次吸附后的校准位置或上次拖放位置）开始拖动
                             currentFrame = latestSetup.userFrame
                             val handleHitRadius = 56f
                             val scale = currentFrame.estimatedScaleX
-                            val boxHeight = (Snapper.REF_FRAME_BOTTOM - Snapper.REF_FRAME_TOP) * scale
-                            val centerY = currentFrame.top + boxHeight / 2.0
+                            val canvasLeft = currentFrame.left.toFloat() / latestRatioX
+                            val canvasRight = currentFrame.right.toFloat() / latestRatioX
+                            val canvasTop = currentFrame.top.toFloat() / latestRatioY
+                            val canvasBoxHeight =
+                                ((Snapper.REF_FRAME_BOTTOM - Snapper.REF_FRAME_TOP) * scale).toFloat() / latestRatioY
+                            val canvasCenterY = canvasTop + canvasBoxHeight / 2f
 
                             dragMode = when {
-                                abs(startOffset.x - currentFrame.left) <= handleHitRadius &&
-                                    abs(startOffset.y - centerY) <= boxHeight -> DragMode.RESIZE_LEFT
-                                abs(startOffset.x - currentFrame.right) <= handleHitRadius &&
-                                    abs(startOffset.y - centerY) <= boxHeight -> DragMode.RESIZE_RIGHT
-                                startOffset.x in (currentFrame.left - 40)..(currentFrame.right + 40) &&
-                                    startOffset.y in (currentFrame.top - 40)..(currentFrame.top + boxHeight + 40) -> DragMode.MOVE_WHOLE
+                                abs(startOffset.x - canvasLeft) <= handleHitRadius &&
+                                    abs(startOffset.y - canvasCenterY) <= canvasBoxHeight -> DragMode.RESIZE_LEFT
+                                abs(startOffset.x - canvasRight) <= handleHitRadius &&
+                                    abs(startOffset.y - canvasCenterY) <= canvasBoxHeight -> DragMode.RESIZE_RIGHT
+                                startOffset.x in (canvasLeft - 40f)..(canvasRight + 40f) &&
+                                    startOffset.y in (canvasTop - 40f)..(canvasTop + canvasBoxHeight + 40f) -> DragMode.MOVE_WHOLE
                                 else -> DragMode.NONE
                             }
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
+                            val dx = dragAmount.x * latestRatioX
+                            val dy = dragAmount.y * latestRatioY
                             val next = when (dragMode) {
                                 DragMode.MOVE_WHOLE -> UserFrameInput(
-                                    left = currentFrame.left + dragAmount.x,
-                                    right = currentFrame.right + dragAmount.x,
-                                    top = currentFrame.top + dragAmount.y
+                                    left = currentFrame.left + dx,
+                                    right = currentFrame.right + dx,
+                                    top = currentFrame.top + dy
                                 )
                                 DragMode.RESIZE_LEFT -> {
-                                    val newLeft = (currentFrame.left + dragAmount.x)
+                                    val newLeft = (currentFrame.left + dx)
                                         .coerceAtMost(currentFrame.right - 120.0)
                                     UserFrameInput(newLeft, currentFrame.right, currentFrame.top)
                                 }
                                 DragMode.RESIZE_RIGHT -> {
-                                    val newRight = (currentFrame.right + dragAmount.x)
+                                    val newRight = (currentFrame.right + dx)
                                         .coerceAtLeast(currentFrame.left + 120.0)
                                     UserFrameInput(currentFrame.left, newRight, currentFrame.top)
                                 }
@@ -203,24 +224,23 @@ private fun ManualSetupScreen(
                     )
                 }
         ) {
-            // 绘制半透明暗色遮罩，突出框选引导
             drawRect(Color.Black.copy(alpha = 0.25f))
 
             val outlineColor = when {
-                setup.snapError != null -> Color(0xFFEF4444) // 红色：未对准
-                setup.snappedCalibration != null -> Color(0xFF22C55E) // 绿色：已吸附
-                else -> Color(0xFF38BDF8) // 天蓝：拖动中
+                setup.snapError != null -> Color(0xFFEF4444)
+                setup.snappedCalibration != null -> Color(0xFF22C55E)
+                else -> Color(0xFF38BDF8)
             }
 
-            // 若已有吸附结果则按吸附后的 Calibration 绘制，否则按用户粗框绘制
+            // 将截图坐标除以 (ratioX, ratioY) 转换为画布坐标后绘制
             val calib = setup.snappedCalibration
             val edges = ReferenceLayout.SLOT_FRAME_VERTICAL_EDGES
             if (calib != null) {
-                val topY = calib.toScreenY(Snapper.REF_FRAME_TOP.toDouble()).toFloat()
-                val bottomY = calib.toScreenY(Snapper.REF_FRAME_BOTTOM.toDouble()).toFloat()
+                val topY = calib.toScreenY(Snapper.REF_FRAME_TOP.toDouble()).toFloat() / ratioY
+                val bottomY = calib.toScreenY(Snapper.REF_FRAME_BOTTOM.toDouble()).toFloat() / ratioY
                 for (box in 0 until ReferenceLayout.SLOT_COUNT) {
-                    val leftX = calib.toScreenX(edges[box * 2].position.toDouble()).toFloat()
-                    val rightX = calib.toScreenX(edges[box * 2 + 1].position.toDouble()).toFloat()
+                    val leftX = calib.toScreenX(edges[box * 2].position.toDouble()).toFloat() / ratioX
+                    val rightX = calib.toScreenX(edges[box * 2 + 1].position.toDouble()).toFloat() / ratioX
                     drawRect(
                         color = outlineColor,
                         topLeft = Offset(leftX, topY),
@@ -229,22 +249,21 @@ private fun ManualSetupScreen(
                     )
                 }
 
-                // 即使已吸附，也绘制左右两端的拉手圆点，方便用户继续微调
                 val cy = (topY + bottomY) / 2f
-                val leftEdgeX = calib.toScreenX(Snapper.REF_FRAME_LEFT.toDouble()).toFloat()
-                val rightEdgeX = calib.toScreenX(Snapper.REF_FRAME_RIGHT.toDouble()).toFloat()
+                val leftEdgeX = calib.toScreenX(Snapper.REF_FRAME_LEFT.toDouble()).toFloat() / ratioX
+                val rightEdgeX = calib.toScreenX(Snapper.REF_FRAME_RIGHT.toDouble()).toFloat() / ratioX
                 drawCircle(outlineColor, radius = 14f, center = Offset(leftEdgeX, cy))
                 drawCircle(outlineColor, radius = 14f, center = Offset(rightEdgeX, cy))
             } else {
                 val sx = setup.userFrame.estimatedScaleX
                 val leftBase = setup.userFrame.left
-                val topY = setup.userFrame.top.toFloat()
-                val bottomY = (setup.userFrame.top + (Snapper.REF_FRAME_BOTTOM - Snapper.REF_FRAME_TOP) * sx).toFloat()
+                val topY = setup.userFrame.top.toFloat() / ratioY
+                val bottomY = (setup.userFrame.top + (Snapper.REF_FRAME_BOTTOM - Snapper.REF_FRAME_TOP) * sx).toFloat() / ratioY
                 for (box in 0 until ReferenceLayout.SLOT_COUNT) {
                     val refL = edges[box * 2].position - Snapper.REF_FRAME_LEFT
                     val refR = edges[box * 2 + 1].position - Snapper.REF_FRAME_LEFT
-                    val lx = (leftBase + refL * sx).toFloat()
-                    val rx = (leftBase + refR * sx).toFloat()
+                    val lx = (leftBase + refL * sx).toFloat() / ratioX
+                    val rx = (leftBase + refR * sx).toFloat() / ratioX
                     drawRect(
                         color = outlineColor,
                         topLeft = Offset(lx, topY),
@@ -253,22 +272,21 @@ private fun ManualSetupScreen(
                     )
                 }
 
-                // 左右两端的拉手圆点
                 val cy = (topY + bottomY) / 2f
-                drawCircle(outlineColor, radius = 14f, center = Offset(setup.userFrame.left.toFloat(), cy))
-                drawCircle(outlineColor, radius = 14f, center = Offset(setup.userFrame.right.toFloat(), cy))
+                drawCircle(outlineColor, radius = 14f, center = Offset(setup.userFrame.left.toFloat() / ratioX, cy))
+                drawCircle(outlineColor, radius = 14f, center = Offset(setup.userFrame.right.toFloat() / ratioX, cy))
             }
 
             // 绘制刷新按钮点击准星
-            val tx = setup.tapScreenX
-            val ty = setup.tapScreenY
+            val tx = setup.tapScreenX / ratioX
+            val ty = setup.tapScreenY / ratioY
             val crossColor = Color(0xFFFACC15)
             drawCircle(crossColor, radius = 16f, center = Offset(tx, ty), style = Stroke(width = 3.5f))
             drawLine(crossColor, Offset(tx - 24f, ty), Offset(tx + 24f, ty), strokeWidth = 3f)
             drawLine(crossColor, Offset(tx, ty - 24f), Offset(tx, ty + 24f), strokeWidth = 3f)
         }
 
-        // 3. 左上角操作说明面板（94% 高遮蔽底色 + 单行防挤压按钮，修复 04.jpg）
+        // 3. 左上角操作说明面板
         Surface(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -290,7 +308,7 @@ private fun ManualSetupScreen(
                     maxLines = 1
                 )
                 Text(
-                    text = "① 拖动上方 4 格轮廓（或拉左右圆点）盖住 4 个因子方框，松手自动吸附；\n② 点击下方黄色准星对准「刷新按钮」。",
+                    text = "1. 拖动上方 4 格轮廓（或拉左右圆点）盖住 4 个因子方框，松手自动吸附；\n2. 点击下方黄色准星对准「刷新按钮」。",
                     color = Color(0xFFCBD5E1),
                     fontSize = 12.sp,
                     lineHeight = 16.sp
@@ -305,7 +323,7 @@ private fun ManualSetupScreen(
                     )
                 } else if (setup.snappedCalibration != null) {
                     Text(
-                        text = "✓ 已对准 4 个槽位方框！点击「下一步」核对结果~",
+                        text = "已对准 4 个槽位方框，请点击「下一步」核对结果。",
                         color = Color(0xFF4ADE80),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -384,10 +402,10 @@ private fun ManualSetupScreen(
 }
 
 /**
- * 确认预览界面（架构方案第 3.4.6 节）：
- * - 截图上画出 4 个槽位的位置；
- * - 展示每个槽位识别出的因子图标与中文名；
- * - 「对」「不对」两个按钮（若有 `Unknown` 或问号则不显示「对」按钮）。
+ * 位置校准确认预览全屏界面。
+ *
+ * 在截图底图上按画布映射比例绘制 4 个槽位裁剪框与刷新按钮点击位置，
+ * 展示各槽位识别出的因子图标与名称，供用户确认校准结果是否准确。
  */
 @Composable
 private fun ConfirmPreviewScreen(
@@ -397,6 +415,13 @@ private fun ConfirmPreviewScreen(
     onCancel: () -> Unit
 ) {
     val imageBitmap = remember(preview.screenshot) { preview.screenshot.asImageBitmap() }
+    var canvasSize by remember(preview.screenshot) {
+        mutableStateOf(IntSize(preview.screenshot.width, preview.screenshot.height))
+    }
+    val canvasW = canvasSize.width.takeIf { it > 0 }?.toFloat() ?: preview.screenshot.width.toFloat()
+    val canvasH = canvasSize.height.takeIf { it > 0 }?.toFloat() ?: preview.screenshot.height.toFloat()
+    val ratioX = preview.screenshot.width.toFloat() / canvasW
+    val ratioY = preview.screenshot.height.toFloat() / canvasH
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 1. 底图
@@ -408,25 +433,33 @@ private fun ConfirmPreviewScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2. 在截图上画出 4 个槽位框与点击位置
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        // 2. 在截图上按画布比例绘制 4 个槽位框与点击位置
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged {
+                    if (it.width > 0 && it.height > 0) {
+                        canvasSize = it
+                    }
+                }
+        ) {
             drawRect(Color.Black.copy(alpha = 0.35f))
             preview.slotRects.forEachIndexed { idx, rect ->
                 val ok = preview.recognizedFactors.getOrNull(idx) != null
                 val boxColor = if (ok) Color(0xFF22C55E) else Color(0xFFEF4444)
                 drawRect(
                     color = boxColor,
-                    topLeft = Offset(rect.x.toFloat(), rect.y.toFloat()),
-                    size = Size(rect.width.toFloat(), rect.height.toFloat()),
+                    topLeft = Offset(rect.x.toFloat() / ratioX, rect.y.toFloat() / ratioY),
+                    size = Size(rect.width.toFloat() / ratioX, rect.height.toFloat() / ratioY),
                     style = Stroke(width = 4f)
                 )
             }
-            val tx = preview.calibration.toScreenX(preview.tapX).toFloat()
-            val ty = preview.calibration.toScreenY(preview.tapY).toFloat()
+            val tx = preview.calibration.toScreenX(preview.tapX).toFloat() / ratioX
+            val ty = preview.calibration.toScreenY(preview.tapY).toFloat() / ratioY
             drawCircle(Color(0xFFFACC15), radius = 12f, center = Offset(tx, ty), style = Stroke(width = 3f))
         }
 
-        // 3. 确认卡片（放在屏幕左侧，不遮挡右侧槽位画框）
+        // 3. 确认卡片
         Surface(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -557,7 +590,7 @@ private fun ConfirmPreviewScreen(
                                 .height(36.dp)
                         ) {
                             Text(
-                                text = "✓ 对，开始",
+                                text = "对，开始",
                                 color = Color.White,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
