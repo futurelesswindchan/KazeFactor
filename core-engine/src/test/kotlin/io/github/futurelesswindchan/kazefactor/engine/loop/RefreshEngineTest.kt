@@ -6,6 +6,7 @@ import io.github.futurelesswindchan.kazefactor.engine.testutil.TestFixtures
 import io.github.futurelesswindchan.kazefactor.engine.vision.Calibration
 import io.github.futurelesswindchan.kazefactor.engine.vision.CalibrationProfile
 import io.github.futurelesswindchan.kazefactor.engine.vision.Calibrator
+import io.github.futurelesswindchan.kazefactor.engine.vision.DetailedFrameAnalysis
 import io.github.futurelesswindchan.kazefactor.engine.vision.FrameAnalysis
 import io.github.futurelesswindchan.kazefactor.engine.vision.FrameAnalyzer
 import io.github.futurelesswindchan.kazefactor.engine.vision.ProfileVerifier
@@ -118,6 +119,10 @@ class RefreshEngineTest {
             results.getOrElse(index++) { NOT_FACTOR_SCREEN_RESULT }
         override fun analyzeWithProfile(frame: ArgbImage, profile: CalibrationProfile): FrameAnalysis =
             analyze(frame, Calibration.IDENTITY)
+        override fun analyzeDetailed(frame: ArgbImage, calibration: Calibration): DetailedFrameAnalysis =
+            DetailedFrameAnalysis(analyze(frame, calibration), emptyList(), null)
+        override fun analyzeDetailedWithProfile(frame: ArgbImage, profile: CalibrationProfile): DetailedFrameAnalysis =
+            DetailedFrameAnalysis(analyzeWithProfile(frame, profile), emptyList(), 0.0)
     }
 
     private class FakeCalibrator : Calibrator(TestFixtures.helpIconTemplate, TestFixtures.recognizerFactory) {
@@ -387,5 +392,22 @@ class RefreshEngineTest {
         assertEquals(100, RefreshSettings.defaultMaxRefreshCount(10.0))
         assertEquals(1752, RefreshSettings.defaultMaxRefreshCount(584.0))
         assertEquals(null, RefreshSettings.defaultMaxRefreshCount(Double.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun `onFrameAnalyzed 在帧关闭前回调详细分析结果`() = runTest {
+        val f = fixture(listOf(uncertain, uncertain, uncertain))
+        var callbackCount = 0
+        var allOpenDuringCallback = true
+        f.engine.onFrameAnalyzed = { frame, _, _ ->
+            callbackCount++
+            if ((frame as FakeFrame).closed) {
+                allOpenDuringCallback = false
+            }
+        }
+        f.engine.start(recipe, settings.copy(maxConsecutiveFailures = 3))
+        assertEquals(3, callbackCount)
+        assertTrue(allOpenDuringCallback, "回调触发时 Frame 尚未关闭，确保可安全拷贝位图")
+        assertTrue(f.capturer.frames.all { it.closed }, "循环结束后所有 Frame 均已关闭")
     }
 }

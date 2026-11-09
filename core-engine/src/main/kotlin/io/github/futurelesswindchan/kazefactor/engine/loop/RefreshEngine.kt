@@ -4,6 +4,7 @@ import io.github.futurelesswindchan.kazefactor.domain.model.Recipe
 import io.github.futurelesswindchan.kazefactor.engine.vision.Calibration
 import io.github.futurelesswindchan.kazefactor.engine.vision.CalibrationProfile
 import io.github.futurelesswindchan.kazefactor.engine.vision.Calibrator
+import io.github.futurelesswindchan.kazefactor.engine.vision.DetailedFrameAnalysis
 import io.github.futurelesswindchan.kazefactor.engine.vision.FrameAnalyzer
 import io.github.futurelesswindchan.kazefactor.engine.vision.ProfileVerifier
 import io.github.futurelesswindchan.kazefactor.engine.vision.ReferenceLayout
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 自动刷新状态机（架构方案第 4 节），对外通过 [state] 推送 [EngineState]。
@@ -62,13 +64,22 @@ class RefreshEngine(
     private val calibrator: Calibrator,
     private val verifier: ProfileVerifier,
     private val timeProvider: () -> Long = System::currentTimeMillis,
-    private val delayProvider: suspend (Long) -> Unit = { delay(it) },
+    private val delayProvider: suspend (Long) -> Unit = { delay(it.milliseconds) },
     private val random: Random = Random.Default
 ) {
     private val _state = MutableStateFlow<EngineState>(EngineState.Idle)
 
     /** 对外的只读状态。 */
     val state: StateFlow<EngineState> = _state.asStateFlow()
+
+    /**
+     * 每帧分析完成后的可选回调，供上层诊断黑匣子收集现场快照。
+     *
+     * 当设置了此回调时，循环内部自动调用 [FrameAnalyzer.analyzeDetailed] 或 [FrameAnalyzer.analyzeDetailedWithProfile]，
+     * 并在 [Frame.close] 之前将原始帧、详细分析结果与当前坐标换算传给监听方。
+     */
+    @Volatile
+    var onFrameAnalyzed: ((frame: Frame, detailed: DetailedFrameAnalysis, calibration: Calibration) -> Unit)? = null
 
     /** 一次运行的不变参数，[resume] 时沿用。 */
     private class RunContext(
@@ -204,10 +215,23 @@ class RefreshEngine(
 
             try {
                 val image = frame.crop(0, 0, frame.width, frame.height)
-                val analysis = if (ctx.profile != null) {
+                val listener = onFrameAnalyzed
+                val detailed = if (listener != null) {
+                    if (ctx.profile != null) {
+                        analyzer.analyzeDetailedWithProfile(image, ctx.profile)
+                    } else {
+                        analyzer.analyzeDetailed(image, ctx.calibration)
+                    }
+                } else {
+                    null
+                }
+                val analysis = detailed?.analysis ?: if (ctx.profile != null) {
                     analyzer.analyzeWithProfile(image, ctx.profile)
                 } else {
                     analyzer.analyze(image, ctx.calibration)
+                }
+                if (detailed != null && listener != null) {
+                    listener.invoke(frame, detailed, ctx.calibration)
                 }
 
                 if (firstFramePending) {

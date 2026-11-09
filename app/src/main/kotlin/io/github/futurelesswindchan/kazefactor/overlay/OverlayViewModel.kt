@@ -1,8 +1,8 @@
 package io.github.futurelesswindchan.kazefactor.overlay
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Rect
 import android.os.Build
 import android.os.SystemClock
 import android.os.VibrationEffect
@@ -19,19 +19,27 @@ import io.github.futurelesswindchan.kazefactor.domain.model.FactorDatabase
 import io.github.futurelesswindchan.kazefactor.domain.model.Recipe
 import io.github.futurelesswindchan.kazefactor.domain.rule.ProbabilityCalculator
 import io.github.futurelesswindchan.kazefactor.engine.image.ArgbImage
+import io.github.futurelesswindchan.kazefactor.engine.loop.Decision
+import io.github.futurelesswindchan.kazefactor.engine.loop.DecisionResult
 import io.github.futurelesswindchan.kazefactor.engine.loop.EngineState
+import io.github.futurelesswindchan.kazefactor.engine.loop.Frame
 import io.github.futurelesswindchan.kazefactor.engine.loop.PauseReason
 import io.github.futurelesswindchan.kazefactor.engine.loop.RefreshEngine
 import io.github.futurelesswindchan.kazefactor.engine.vision.Calibration
 import io.github.futurelesswindchan.kazefactor.engine.vision.CalibrationProfile
 import io.github.futurelesswindchan.kazefactor.engine.vision.Calibrator
+import io.github.futurelesswindchan.kazefactor.engine.vision.DetailedFrameAnalysis
+import io.github.futurelesswindchan.kazefactor.engine.vision.FrameAnalyzer
 import io.github.futurelesswindchan.kazefactor.engine.vision.ProfileVerifier
 import io.github.futurelesswindchan.kazefactor.engine.vision.RecognizerFactory
 import io.github.futurelesswindchan.kazefactor.engine.vision.ReferenceLayout
+import io.github.futurelesswindchan.kazefactor.engine.vision.ScreenState
 import io.github.futurelesswindchan.kazefactor.engine.vision.SlotResult
 import io.github.futurelesswindchan.kazefactor.engine.vision.Snapper
 import io.github.futurelesswindchan.kazefactor.engine.vision.UserFrameInput
 import io.github.futurelesswindchan.kazefactor.service.A11yScreenCapturer
+import io.github.futurelesswindchan.kazefactor.util.DiagnosticPackager
+import io.github.futurelesswindchan.kazefactor.util.FrameSnapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 悬浮窗 ViewModel（架构方案第 2.2、3.4、4、5 节）。
@@ -60,7 +69,7 @@ import kotlin.math.roundToInt
  * 6. 提供「保存当前画面」功能，方便用户真机导出排查问题。
  */
 class OverlayViewModel(
-    private val context: Context,
+    @field:SuppressLint("StaticFieldLeak") private val context: Context,
     private val factorDatabase: FactorDatabase,
     private val recipeRepository: RecipeRepository,
     private val engineSettingsDataStore: EngineSettingsDataStore,
@@ -79,15 +88,24 @@ class OverlayViewModel(
     private val refreshTimestamps = ArrayDeque<Long>()
     private var lastObservedCount = 0
     private val probabilityCalculator = ProbabilityCalculator(factorDatabase)
+    private val decision = Decision(factorDatabase)
+    private val diagnosticAnalyzer = FrameAnalyzer(recognizerFactory)
+
+    /** 内存常驻的最近 3 帧失败现场快照环形缓冲（不产生磁盘 IO）。 */
+    private val failureSnapshots = ArrayDeque<FrameSnapshot>()
+    private val snapshotLock = Any()
+
+    @Volatile
+    private var lastActiveCalibration: Calibration? = null
 
     /** 供截屏避让时调用的透明度回调 */
     var onWindowAlphaRequest: (suspend (Float) -> Unit)? = null
 
     /** 截取一帧无悬浮窗自遮挡的纯净画面（隐藏视图并等待 100ms 确保 SurfaceFlinger 合成新帧） */
-    private suspend fun captureCleanFrame(): io.github.futurelesswindchan.kazefactor.engine.loop.Frame? {
+    private suspend fun captureCleanFrame(): Frame? {
         onWindowAlphaRequest?.invoke(0f)
         try {
-            kotlinx.coroutines.delay(100)
+            kotlinx.coroutines.delay(100.milliseconds)
             return capturer.capture()
         } finally {
             onWindowAlphaRequest?.invoke(1f)
@@ -132,7 +150,10 @@ class OverlayViewModel(
             }
         }
 
-        // 3. 监听 RefreshEngine 状态机
+        // 3. 监听 RefreshEngine 状态机与每帧诊断钩子
+        refreshEngine.onFrameAnalyzed = { frame, detailed, calibration ->
+            recordFailureFrameIfNeeded(frame, detailed, calibration)
+        }
         viewModelScope.launch {
             refreshEngine.state.collect { state ->
                 handleEngineState(state)
@@ -283,7 +304,7 @@ class OverlayViewModel(
         engineJob = viewModelScope.launch(Dispatchers.Default) {
             try {
                 refreshEngine.resume()
-            } catch (e: Throwable) {
+            } catch (_: Throwable) {
                 // 上次没有成功取得位置或状态不匹配时，回退到重新开始
                 startRefreshing()
             }
@@ -551,7 +572,7 @@ class OverlayViewModel(
             if (preview.startAfterConfirm) {
                 // UI 动画避让（军师架构建议 2026-11-08）：
                 // 给全屏悬浮窗退场与小球展示留出 150ms 沉淀窗口，避免过渡帧残留污染首帧识别
-                kotlinx.coroutines.delay(150)
+                kotlinx.coroutines.delay(150.milliseconds)
                 val recipe = _uiState.value.selectedRecipe
                 if (recipe != null) {
                     startEngineWithProfile(recipe, profile)
@@ -576,6 +597,102 @@ class OverlayViewModel(
     }
 
     /**
+     * 导出诊断压缩包并拉起系统原生分享面板。
+     *
+     * 优先打包内存环形缓冲中沉淀的最近 1~3 帧失败现场快照；
+     * 若缓冲为空（例如用户在主面板直接点击导出），则即时截取一帧干净画面执行完整诊断分析后打包。
+     */
+    fun exportDiagnostics(onError: ((String) -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                val buffered = synchronized(snapshotLock) { failureSnapshots.toList() }
+                if (buffered.isNotEmpty()) {
+                    val firstBmp = buffered.first().fullBitmap
+                    val profile = calibrationProfileDataStore.getProfile(firstBmp.width, firstBmp.height)
+                    // 若当前展开在面板形态，收起为小球以免遮挡系统底部分享面板
+                    collapseToBubble()
+                    DiagnosticPackager.exportAndShare(
+                        context = context,
+                        factorDatabase = factorDatabase,
+                        profile = profile,
+                        fallbackCalibration = lastActiveCalibration ?: buffered.last().calibration,
+                        snapshots = buffered,
+                        pauseReason = _uiState.value.pauseReason,
+                        selectedRecipe = _uiState.value.selectedRecipe
+                    )
+                    return@launch
+                }
+
+                // 环形缓冲为空时，实时截取一帧干净画面并生成单帧诊断快照
+                val frame = captureCleanFrame()
+                if (frame == null) {
+                    withContext(Dispatchers.Main) {
+                        onError?.invoke("截图失败，请确认无障碍服务正常运行")
+                    }
+                    return@launch
+                }
+
+                var tempBitmap: Bitmap? = null
+                try {
+                    val srcBitmap = (frame as? A11yScreenCapturer.BitmapFrame)?.bitmap
+                    if (srcBitmap == null || srcBitmap.isRecycled) {
+                        withContext(Dispatchers.Main) {
+                            onError?.invoke("无法读取截图位图")
+                        }
+                        return@launch
+                    }
+                    val copy = srcBitmap.copy(srcBitmap.config ?: Bitmap.Config.ARGB_8888, false)
+                    tempBitmap = copy
+                    val w = copy.width
+                    val h = copy.height
+                    val fullImage = frame.crop(0, 0, w, h)
+                    val profile = calibrationProfileDataStore.getProfile(w, h)
+
+                    val (detailed, activeCalib) = if (profile != null) {
+                        diagnosticAnalyzer.analyzeDetailedWithProfile(fullImage, profile) to profile.toCalibration()
+                    } else {
+                        val calib = lastActiveCalibration
+                            ?: calibrator.calibrate(fullImage)
+                            ?: run {
+                                val scale = h.toDouble() / ReferenceLayout.HEIGHT
+                                val originX = (w - ReferenceLayout.WIDTH * scale) / 2.0
+                                Calibration(scale, scale, originX, 0.0)
+                            }
+                        diagnosticAnalyzer.analyzeDetailed(fullImage, calib) to calib
+                    }
+
+                    val liveSnapshot = FrameSnapshot(
+                        fullBitmap = copy,
+                        slotAnalyses = detailed.slotAnalyses,
+                        screenState = detailed.analysis.screenState,
+                        toggleDistance = detailed.toggleDistance,
+                        calibration = activeCalib,
+                        capturedAtMs = System.currentTimeMillis()
+                    )
+
+                    collapseToBubble()
+                    DiagnosticPackager.exportAndShare(
+                        context = context,
+                        factorDatabase = factorDatabase,
+                        profile = profile,
+                        fallbackCalibration = activeCalib,
+                        snapshots = listOf(liveSnapshot),
+                        pauseReason = _uiState.value.pauseReason,
+                        selectedRecipe = _uiState.value.selectedRecipe
+                    )
+                } finally {
+                    tempBitmap?.let { if (!it.isRecycled) it.recycle() }
+                    frame.close()
+                }
+            } catch (e: Throwable) {
+                withContext(Dispatchers.Main) {
+                    onError?.invoke("导出诊断包失败：${e.message ?: "未知错误"}")
+                }
+            }
+        }
+    }
+
+    /**
      * 保存当前画面到应用目录（架构方案第 3.1、8 节「保存当前画面」功能，方便用户真机导出排查问题）。
      */
     fun saveCurrentScreenShot(onSaved: (String) -> Unit) {
@@ -588,8 +705,10 @@ class OverlayViewModel(
                     dir.mkdirs()
                     val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                     val file = File(dir, "kaze_factor_$stamp.png")
-                    FileOutputStream(file).use { out ->
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    withContext(Dispatchers.IO) {
+                        FileOutputStream(file).use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        }
                     }
                     withContext(Dispatchers.Main) {
                         onSaved(file.absolutePath)
@@ -672,10 +791,75 @@ class OverlayViewModel(
         }
         refreshTimestamps.clear()
         lastObservedCount = 0
+        lastActiveCalibration = profile.toCalibration()
+        clearFailureSnapshots()
 
         engineJob = viewModelScope.launch(Dispatchers.Default) {
             refreshEngine.start(recipe, settings, profile)
         }
+    }
+
+    /**
+     * 当单帧出现识别异常（非因子界面、含未知/问号/模糊槽位、或决策不确定）时，
+     * 将该帧位图与完整匹配排行写入容量为 [MAX_FAILURE_SNAPSHOTS] 的内存环形缓冲区。
+     */
+    private fun recordFailureFrameIfNeeded(
+        frame: Frame,
+        detailed: DetailedFrameAnalysis,
+        calibration: Calibration
+    ) {
+        lastActiveCalibration = calibration
+        val recipe = _uiState.value.selectedRecipe
+        val isAbnormal = detailed.analysis.screenState != ScreenState.FACTOR_SCREEN_ON ||
+            detailed.analysis.slotResults.any { it !is SlotResult.Factor } ||
+            (recipe != null && decision.decide(detailed.analysis.slotResults, recipe) is DecisionResult.Uncertain)
+
+        if (!isAbnormal) return
+
+        val srcBitmap = (frame as? A11yScreenCapturer.BitmapFrame)?.bitmap ?: return
+        if (srcBitmap.isRecycled) return
+        val copy = srcBitmap.copy(srcBitmap.config ?: Bitmap.Config.ARGB_8888, false) ?: return
+
+        pushFailureSnapshot(
+            FrameSnapshot(
+                fullBitmap = copy,
+                slotAnalyses = detailed.slotAnalyses,
+                screenState = detailed.analysis.screenState,
+                toggleDistance = detailed.toggleDistance,
+                calibration = calibration,
+                capturedAtMs = System.currentTimeMillis()
+            )
+        )
+    }
+
+    private fun pushFailureSnapshot(snapshot: FrameSnapshot) {
+        synchronized(snapshotLock) {
+            while (failureSnapshots.size >= MAX_FAILURE_SNAPSHOTS) {
+                val evicted = failureSnapshots.removeFirst()
+                if (!evicted.fullBitmap.isRecycled) {
+                    evicted.fullBitmap.recycle()
+                }
+            }
+            failureSnapshots.addLast(snapshot)
+        }
+    }
+
+    private fun clearFailureSnapshots() {
+        synchronized(snapshotLock) {
+            failureSnapshots.forEach { snapshot ->
+                if (!snapshot.fullBitmap.isRecycled) {
+                    snapshot.fullBitmap.recycle()
+                }
+            }
+            failureSnapshots.clear()
+        }
+    }
+
+    @SuppressLint("EmptySuperCall")
+    override fun onCleared() {
+        refreshEngine.onFrameAnalyzed = null
+        clearFailureSnapshots()
+        super.onCleared()
     }
 
     private fun handleEngineState(state: EngineState) {
@@ -757,12 +941,7 @@ class OverlayViewModel(
                 context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             }
             if (vibrator?.hasVibrator() == true) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(120)
-                }
+                vibrator.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE))
             }
         } catch (_: Throwable) {
         }
@@ -770,4 +949,9 @@ class OverlayViewModel(
 
     private fun dpToPx(dp: Int): Int =
         (dp * context.resources.displayMetrics.density).roundToInt()
+
+    companion object {
+        /** 内存黑匣子环形缓冲保留的最大失败帧数。 */
+        const val MAX_FAILURE_SNAPSHOTS = 3
+    }
 }
