@@ -19,9 +19,9 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * 第 3c 步：手动吸附、快速核验与位置档案（架构方案第 9 节第 3c 行）。
+ * 手动边缘吸附、位置档案快速核验与序列化单元测试。
  *
- * - 验收 ①：用户框误差 ±30 px、横向拉伸 0.9 / 1.1 / 1.2 倍的合成图，吸附后槽位误差 ≤ 2 px。
+ * - 验收 ①：用户框误差 ±30 px、不同等比缩放（0.75 / 0.9 / 1.0 / 1.1 / 1.2 / 1.25 倍）的合成图，吸附后槽位误差 ≤ 2 px，且始终保持等比缩放（scaleX == scaleY）。
  * - 验收 ②：初值故意偏一个槽位（163 px），吸附必须失败（逐边检查拦下）。
  * - 验收 ③：快速核验，47 张截图中开关开的全部通过，开关关的全部判为「开关关闭」。
  * - 验收 ④：档案序列化后再读回，换算结果不变。
@@ -35,7 +35,7 @@ class SnapperProfileTest {
     // ---- 验收 ① ----
 
     @Test
-    fun `用户框有误差时吸附到正确位置`() {
+    fun 用户框有误差时吸附到正确位置() {
         val report = StringBuilder("# 吸附报告\n\n")
         report.appendLine("用户框误差 e：左沿 +e、右沿 −e、上沿 +e（e > 0 时框偏小偏下，e < 0 时偏大偏上）。")
         report.appendLine("槽位误差：4 个槽位 16 条边界相对真值的最大偏差（px），上限 $MAX_SLOT_ERROR。")
@@ -55,6 +55,7 @@ class SnapperProfileTest {
                 for (e in USER_ERRORS) {
                     val input = UserFrameInput(truthInput.left + e, truthInput.right - e, truthInput.top + e)
                     val result = snapper.measure(image, input)
+                    assertEquals(result.calibration.scaleX, result.calibration.scaleY, "Snapper 必须始终输出等比缩放系数")
                     val slotError = maxSlotError(result.calibration, synthetic.truth)
                     val passed = result.passesEdgeCheck
                     val ok = passed && slotError <= MAX_SLOT_ERROR
@@ -66,11 +67,11 @@ class SnapperProfileTest {
                     val tag = "[${case.name}] $file e = $e"
                     total++
                     if (!passed) rejected += tag
-                    // 硬性要求：通过了检查就必须是对的。被拒收只是让用户重新对准，实验 11 里也有拒收
+                    // 通过逐边检查的结果必须满足槽位精度要求
                     if (passed && slotError > MAX_SLOT_ERROR) {
                         failures += "$tag：通过逐边检查但槽位误差 ${"%.2f".format(slotError)} px（给出了错误坐标）"
                     }
-                    // 原始截图、用户框完全准确时必须通过，否则说明坐标或梯度实现有问题
+                    // 原始截图、用户框完全准确时必须通过
                     if (case.mustPassExact && e == 0 && !passed) {
                         failures += "$tag：原始截图、框完全准确时被拒收，最差边 ${"%.3f".format(result.worstCoverage)}"
                     }
@@ -88,7 +89,7 @@ class SnapperProfileTest {
     // ---- 验收 ② ----
 
     @Test
-    fun `初值偏一个槽位时吸附失败`() {
+    fun 初值偏一个槽位时吸附失败() {
         val failures = mutableListOf<String>()
         for (file in SOURCES) {
             val frame = TestFixtures.loadScreenshot(file)
@@ -107,14 +108,14 @@ class SnapperProfileTest {
     }
 
     @Test
-    fun `用户框左右颠倒时拒绝构造`() {
+    fun 用户框左右颠倒时拒绝构造() {
         assertFailsWith<IllegalArgumentException> { UserFrameInput(left = 500.0, right = 400.0, top = 100.0) }
     }
 
     // ---- 验收 ③ ----
 
     @Test
-    fun `快速核验47张截图`() {
+    fun 快速核验47张截图() {
         val verifier = ProfileVerifier(TestFixtures.recognizerFactory)
         // 真实使用中参照块总是在开关开时截下的，这里统一取 enable01 的
         val reference = TestFixtures.loadScreenshot("enable01.jpg")
@@ -126,16 +127,16 @@ class SnapperProfileTest {
         val report = StringBuilder("# 快速核验报告\n\n")
         report.appendLine("参照块：enable01.jpg 的开关区域 ${ProfileVerifier.TOGGLE_PATCH_REF_RECT}；阈值 ${verifier.toggleThreshold}\n")
         val failures = mutableListOf<String>()
-        for (label in TestFixtures.labels) {
-            val frame = TestFixtures.loadScreenshot(label.file)
+        for ((file, expected) in TestFixtures.labels) {
+            val frame = TestFixtures.loadScreenshot(file)
             val result = verifier.verify(frame, profile)
-            val expectOff = label.expected.all { it == SlotResult.Question }
+            val expectOff = expected.all { it == SlotResult.Question }
             val ok = if (expectOff) result is ProfileVerifier.Result.ToggleOff else result is ProfileVerifier.Result.Pass
             report.appendLine(
-                "  ${if (ok) "  " else "✘ "}${label.file}  距离 ${"%.2f".format(result.toggleDistance)}  → ${result::class.simpleName}"
+                "  ${if (ok) "  " else "✘ "}$file  距离 ${"%.2f".format(result.toggleDistance)}  → ${result::class.simpleName}"
             )
             if (!ok) {
-                failures += "${label.file}：期望 ${if (expectOff) "ToggleOff" else "Pass"}，实际 $result"
+                failures += "${file}：期望 ${if (expectOff) "ToggleOff" else "Pass"}，实际 $result"
             }
         }
         writeReport("verify-report.txt", report)
@@ -143,7 +144,7 @@ class SnapperProfileTest {
     }
 
     @Test
-    fun `截图尺寸与档案不符时核验失败`() {
+    fun 截图尺寸与档案不符时核验失败() {
         val reference = TestFixtures.loadScreenshot("enable01.jpg")
         val patch = ProfileVerifier.captureTogglePatch(reference, Calibration.IDENTITY)!!
         val profile = CalibrationProfile.create(
@@ -155,7 +156,7 @@ class SnapperProfileTest {
     }
 
     @Test
-    fun `非因子画面核验失败`() {
+    fun 非因子画面核验失败() {
         val reference = TestFixtures.loadScreenshot("enable01.jpg")
         val patch = ProfileVerifier.captureTogglePatch(reference, Calibration.IDENTITY)!!
         val profile = CalibrationProfile.create(
@@ -170,7 +171,7 @@ class SnapperProfileTest {
     // ---- 验收 ④ ----
 
     @Test
-    fun `档案序列化后读回换算不变`() {
+    fun 档案序列化后读回换算不变() {
         val reference = TestFixtures.loadScreenshot("enable01.jpg")
         // 横纵不等、带小数的换算，覆盖手动吸附的情况
         val calibration = Calibration(1.1234567890123, 0.98765432109876, -12.3456789, 45.6789012345)
@@ -201,7 +202,7 @@ class SnapperProfileTest {
     }
 
     @Test
-    fun `损坏或版本不认识的档案读回为空`() {
+    fun 损坏或版本不认识的档案读回为空() {
         val codec = pngCodec()
         val patch = ArgbImage.filled(4, 4, BLACK)
         val text = codec.encode(
@@ -218,7 +219,7 @@ class SnapperProfileTest {
     }
 
     @Test
-    fun `档案点击位置换算到屏幕`() {
+    fun 档案点击位置换算到屏幕() {
         val calibration = Calibration(0.5, 0.5, 10.0, 20.0)
         val profile = CalibrationProfile.create(
             1194, 540, calibration, ArgbImage.filled(2, 2, BLACK), CalibrationProfile.Source.AUTO, 0L
@@ -232,7 +233,7 @@ class SnapperProfileTest {
     // ---- 横纵分开缩放的模板 ----
 
     @Test
-    fun `横纵相同时模板与单一缩放逐像素一致`() {
+    fun 横纵相同时模板与单一缩放逐像素一致() {
         // 只传一个缩放与显式传两个相同缩放，结果必须一致，且槽位是正方形。
         // NOTE: 与改动前旧算法的一致性由 ScreenshotAnswerTest、CalibrationSyntheticTest 照旧通过来保证，
         // 这里比较的都是新代码。
@@ -251,21 +252,23 @@ class SnapperProfileTest {
     }
 
     @Test
-    fun `横向拉伸的截图按吸附结果识别正确`() {
+    fun 等比缩放的截图按吸附结果识别正确() {
         val failures = mutableListOf<String>()
-        for (label in TestFixtures.labels.filter { it.file in SOURCES }) {
-            val source = TestFixtures.loadScreenshot(label.file)
-            for ((sx, sy) in listOf(0.9 to 1.0, 1.1 to 1.0, 1.2 to 1.0)) {
-                val synthetic = SyntheticFrames.scaleWithBorderXY(source, sx, sy, 40, 0)
+        for ((file, expected) in TestFixtures.labels.filter { it.file in SOURCES }) {
+            val source = TestFixtures.loadScreenshot(file)
+            for (scale in listOf(0.9, 1.1, 1.2)) {
+                val synthetic = SyntheticFrames.scaleWithBorderXY(source, scale, scale, 40, 0)
                 val result = snapper.snap(synthetic.image, UserFrameInput.fromCalibration(synthetic.truth))
                 if (result == null) {
-                    failures += "${label.file} ($sx, $sy)：吸附失败"
+                    failures += "$file (scale = $scale)：吸附失败"
                     continue
                 }
+                assertEquals(result.calibration.scaleX, result.calibration.scaleY)
                 val actual = TestFixtures.recognizerFactory.create(result.calibration).recognize(synthetic.image).slots
                 for (i in actual.indices) {
-                    if (actual[i] != label.expected[i]) {
-                        failures += "${label.file} ($sx, $sy) 第 ${i + 1} 槽：期望 ${TestFixtures.describe(label.expected[i])}，" +
+                    if (actual[i] != expected[i]) {
+                        failures += "$file (scale = $scale) 第 ${i + 1} 槽：期望 ${TestFixtures.describe(
+                            expected[i])}，" +
                             "实际 ${TestFixtures.describe(actual[i])}"
                     }
                 }
@@ -326,7 +329,7 @@ class SnapperProfileTest {
         /** 相邻槽位的间距（参考坐标），验收 ② 的偏移量。 */
         const val SLOT_PITCH = 163.0
 
-        val BLACK = 0xFF000000.toInt()
+        const val BLACK = 0xFF000000.toInt()
 
         /** 开关关、开两种状态各取几张。 */
         val SOURCES = listOf("disable01.jpg", "enable01.jpg", "enable20.jpg", "enable40.jpg")
@@ -334,15 +337,15 @@ class SnapperProfileTest {
         /** 用户框误差（px），覆盖验收 ① 的 ±30。 */
         val USER_ERRORS = listOf(0, 15, -15, 30, -30)
 
-        /** 等比缩放与横向拉伸，拉伸倍数取自验收 ①，条件参照调研报告实验 11 第 5 轮。 */
+        /** 不同等比缩放系数与黑边条件下的合成测试集。 */
         val CASES = listOf(
             Case("原始 2388×1080", 1.0, 1.0, 0, 0, null, mustPassExact = true),
             Case("k = 1，JPEG 85", 1.0, 1.0, 0, 0, 0.85f),
             Case("k = 0.75，JPEG 85", 0.75, 0.75, 0, 0, 0.85f),
             Case("k = 1.25，黑边 (47, 0)", 1.25, 1.25, 47, 0, null),
-            Case("kx = 1.1，ky = 1，JPEG 85", 1.1, 1.0, 0, 0, 0.85f),
-            Case("kx = 0.9，ky = 1，黑边 (60, 0)", 0.9, 1.0, 60, 0, null),
-            Case("kx = 1.2，ky = 1，黑边 (40, 0)", 1.2, 1.0, 40, 0, null)
+            Case("k = 1.1，JPEG 85", 1.1, 1.1, 0, 0, 0.85f),
+            Case("k = 0.9，黑边 (60, 0)", 0.9, 0.9, 60, 0, null),
+            Case("k = 1.2，黑边 (40, 0)", 1.2, 1.2, 40, 0, null)
         )
     }
 }
