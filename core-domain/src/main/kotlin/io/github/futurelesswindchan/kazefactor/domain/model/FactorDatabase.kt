@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
  * 因子数据库：包含所有因子、冲突规则和排他组
  * 
  * @property dataVersion 数据版本号，用于口令码兼容性检查
- * @property gameVersion 对应的游戏版本号（便于维护）
+ * @property gameVersion 对应的游戏版本号(2026/11/09 为 8.7.0)
  * @property factors 所有普通挑战因子列表
  * @property conflicts 冲突因子对列表，每个元素是一对不能同时出现的因子ID
  * @property exclusiveGroups 排他组列表，每组内的因子最多只能出现指定数量
