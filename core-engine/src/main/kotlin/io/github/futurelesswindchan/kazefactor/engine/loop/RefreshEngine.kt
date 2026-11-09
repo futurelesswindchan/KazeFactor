@@ -24,20 +24,19 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * 自动刷新状态机（架构方案第 4 节），对外通过 [state] 推送 [EngineState]。
+ * 自动刷新状态机，对外通过 [state] 推送 [EngineState]。
  *
  * [start] 和 [resume] 都会挂起，直到命中、暂停或被 [stop] 取消。调用方应在 `Dispatchers.Default`
  * 的协程里调用，识别不占主线程；[pause]、[stop] 可以从任意线程调用。
  *
  * 位置来源：
  * - 传入位置档案：先快速核验（[ProfileVerifier]）。通过后的**第一帧**有槽位是 `Unknown` 时，
- *   视为核验失败（第 3.4.5 节第 2 条），暂停为 [PauseReason.VERIFY_FAILED]。核验帧只比较开关区域，
+ *   视为核验失败，暂停为 [PauseReason.VERIFY_FAILED]。核验帧只比较开关区域，
  *   第一帧才做正式识别，所以同一帧不会识别两次。
  * - 没有档案：自动校准，最多 [MAX_CALIBRATION_ATTEMPTS] 帧。
  *
- * NOTE: 快速核验失败时只暂停为 [PauseReason.VERIFY_FAILED]，不在引擎里自动校准（架构设计方 2026-11-07 确认）。
- * 第 3.4.6 节要求因出错重新设置位置时必须让用户确认预览，这一步只有界面能做，
- * 所以由 app 完成校准和预览、保存新档案后重新 [start]。
+ * NOTE: 快速核验失败时只暂停为 [PauseReason.VERIFY_FAILED]，不在引擎里自动校准。
+ * 因出错重新设置位置时需让用户确认预览，由上层完成校准和预览、保存新档案后重新 [start]。
  *
  * ```
  * val engine = RefreshEngine(capturer, tapper, analyzer, Decision(db), calibrator, verifier)

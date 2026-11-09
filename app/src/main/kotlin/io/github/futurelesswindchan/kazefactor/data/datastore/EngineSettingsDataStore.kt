@@ -1,5 +1,6 @@
 package io.github.futurelesswindchan.kazefactor.data.datastore
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -13,9 +14,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * 自动刷新设置（供悬浮窗与引擎使用，架构方案第 1.5、2.2 节）。
+ * 自动刷新设置（供悬浮窗与引擎使用）。
  *
- * @property frequencyPerSecond 用户期望的刷新频率（1~10 次/秒），默认 3
+ * 刷新频率固定为每秒 2.5 次（400 ms 间隔），以匹配无障碍服务稳定运行区间。
+ *
+ * @property frequencyPerSecond 频率档位，默认使用固定常量 [RefreshSettings.DEFAULT_FREQUENCY]
  * @property maxCountLimitEnabled 是否启用总次数上限（默认启用，上限 = 期望次数 × 3 且至少 100）
  * @property customMaxCount 用户自定义的总次数上限（当 > 0 时优先生效；≤ 0 表示使用默认倍数公式）
  * @property vibrateOnHit 命中时是否短震动提醒，默认 true
@@ -31,6 +34,8 @@ data class EngineSettingsPref(
     /**
      * 按当前设置与配方的期望刷新次数生成 [RefreshSettings]。
      *
+     * 默认采用固定的 400 ms 间隔（2.5 次/秒）。
+     *
      * @param expectedRefreshCount `ProbabilityCalculator.expectedRefreshCount()` 的结果
      */
     fun toRefreshSettings(expectedRefreshCount: Double): RefreshSettings {
@@ -39,22 +44,29 @@ data class EngineSettingsPref(
             customMaxCount > 0 -> customMaxCount
             else -> RefreshSettings.defaultMaxRefreshCount(expectedRefreshCount)
         }
+        val clampedFreq = frequencyPerSecond.coerceIn(1, 10)
+        val intervalOverride = if (clampedFreq == RefreshSettings.DEFAULT_FREQUENCY) {
+            RefreshSettings.FIXED_INTERVAL_MS
+        } else {
+            null
+        }
         return RefreshSettings(
-            frequencyPerSecond = frequencyPerSecond.coerceIn(1, 10),
-            maxRefreshCount = maxCount
+            frequencyPerSecond = clampedFreq,
+            maxRefreshCount = maxCount,
+            intervalOverrideMs = intervalOverride
         )
     }
 }
 
 /**
- * 自动刷新引擎设置持久化存储（DataStore 文件 `engine_settings`，架构方案第 2.2 节）。
+ * 自动刷新引擎设置持久化存储（DataStore 文件 `engine_settings`）。
  */
 class EngineSettingsDataStore(private val context: Context) {
 
-    /** 实时监听引擎设置。 */
+    /** 实时监听引擎设置，刷新频率统一为固定常量。 */
     val settingsFlow: Flow<EngineSettingsPref> = context.engineSettingsDataStore.data.map { prefs ->
         EngineSettingsPref(
-            frequencyPerSecond = (prefs[KEY_FREQUENCY] ?: RefreshSettings.DEFAULT_FREQUENCY).coerceIn(1, 10),
+            frequencyPerSecond = RefreshSettings.DEFAULT_FREQUENCY,
             maxCountLimitEnabled = prefs[KEY_LIMIT_ENABLED] ?: true,
             customMaxCount = (prefs[KEY_CUSTOM_MAX_COUNT] ?: 0).coerceAtLeast(0),
             vibrateOnHit = prefs[KEY_VIBRATE_ON_HIT] ?: true,
@@ -62,7 +74,7 @@ class EngineSettingsDataStore(private val context: Context) {
         )
     }
 
-    /** 更新刷新频率（1~10 次/秒）。 */
+    /** 更新刷新频率档位。 */
     suspend fun setFrequency(frequencyPerSecond: Int) {
         val clamped = frequencyPerSecond.coerceIn(1, 10)
         context.engineSettingsDataStore.edit { prefs ->
@@ -113,6 +125,7 @@ class EngineSettingsDataStore(private val context: Context) {
         private val KEY_VIBRATE_ON_HIT = booleanPreferencesKey("vibrate_on_hit")
         private val KEY_LAST_RECIPE_ID = stringPreferencesKey("last_selected_recipe_id")
 
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: EngineSettingsDataStore? = null
 

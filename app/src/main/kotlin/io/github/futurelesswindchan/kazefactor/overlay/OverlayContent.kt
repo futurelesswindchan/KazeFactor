@@ -1,5 +1,6 @@
 package io.github.futurelesswindchan.kazefactor.overlay
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -30,8 +31,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,19 +41,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.futurelesswindchan.kazefactor.OverlayController
+import io.github.futurelesswindchan.kazefactor.R
+import io.github.futurelesswindchan.kazefactor.engine.loop.PauseReason
 import io.github.futurelesswindchan.kazefactor.ui.util.FactorIconMapper
 import java.util.Locale
-import kotlin.math.roundToInt
 
 /**
- * 悬浮窗主内容视图：根据 [OverlayUiState.mode] 严格互斥渲染单一面板（架构方案第 2.2、5 节，产品规格 2026-11-08）。
+ * 悬浮窗主内容视图：根据 [OverlayUiState.mode] 严格互斥渲染单一面板。
  *
  * @param viewModel 悬浮窗 ViewModel
  * @param onDragDelta 用户拖动小球或胶囊时的像素位移回调（由 `OverlayWindow` 更新 `WindowManager.LayoutParams`）
@@ -82,13 +84,12 @@ fun OverlayContent(
                 onCollapse = { viewModel.collapseToBubble() },
                 onCloseOverlay = { OverlayController.requestHide() },
                 onSelectRecipe = { viewModel.selectRecipe(it) },
-                onFrequencyChange = { viewModel.updateFrequency(it) },
                 onVibrateChange = { viewModel.updateVibrateOnHit(it) },
                 onStartClick = { viewModel.startRefreshing() },
                 onManualSetupClick = { viewModel.startManualCalibration() },
-                onSaveScreenshotClick = {
-                    viewModel.saveCurrentScreenShot { path ->
-                        Toast.makeText(context, "画面已保存：$path", Toast.LENGTH_LONG).show()
+                onExportDiagnosticsClick = {
+                    viewModel.exportDiagnostics { err ->
+                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
                     }
                 }
             )
@@ -100,7 +101,12 @@ fun OverlayContent(
                 onPause = { viewModel.pauseRefreshing() },
                 onResume = { viewModel.resumeRefreshing() },
                 onStop = { viewModel.stopRefreshing() },
-                onManualSetup = { viewModel.startManualCalibration() }
+                onManualSetup = { viewModel.startManualCalibration() },
+                onExportDiagnostics = {
+                    viewModel.exportDiagnostics { err ->
+                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                    }
+                }
             )
         }
         OverlayMode.HIT -> {
@@ -138,7 +144,7 @@ private fun BubbleView(
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .background(Color(0xF00284C7))
+            .background(Color(0xF00F172A))
             .border(2.dp, Color(0xFF7DD3FC), CircleShape)
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
@@ -146,21 +152,23 @@ private fun BubbleView(
                     onDragDelta(dragAmount.x, dragAmount.y)
                 }
             }
-            .clickable { onTap() },
+            .clickable { onTap() }
+            .padding(6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "风",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp
+        Image(
+            painter = painterResource(R.mipmap.ic_launcher_emoji),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(34.dp)
         )
     }
 }
 
 /**
- * 形态 ②：展开主配置面板（横屏一屏化紧凑布局 + 94% 高遮蔽暗色底，修复 `07.jpg`、`08.jpg`）。
+ * 形态 ②：展开主配置面板（横屏一屏化紧凑布局 + 94% 高遮蔽暗色底）。
  */
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 private fun PanelView(
     uiState: OverlayUiState,
@@ -168,11 +176,10 @@ private fun PanelView(
     onCollapse: () -> Unit,
     onCloseOverlay: () -> Unit,
     onSelectRecipe: (io.github.futurelesswindchan.kazefactor.domain.model.Recipe) -> Unit,
-    onFrequencyChange: (Int) -> Unit,
     onVibrateChange: (Boolean) -> Unit,
     onStartClick: () -> Unit,
     onManualSetupClick: () -> Unit,
-    onSaveScreenshotClick: () -> Unit
+    onExportDiagnosticsClick: () -> Unit
 ) {
     val config = LocalConfiguration.current
     val maxPanelHeight = (config.screenHeightDp - 16).coerceAtLeast(240).dp
@@ -183,7 +190,7 @@ private fun PanelView(
             .heightIn(max = maxPanelHeight)
             .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xF00F172A) // 94% 高遮蔽深空墨蓝，防止底层游戏文字透出干扰
+        color = Color(0xF00F172A)
     ) {
         Column(
             modifier = Modifier
@@ -233,12 +240,12 @@ private fun PanelView(
                             .clickable { onCloseOverlay() }
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Text("✕", color = Color(0xFFF87171), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text("关闭", color = Color(0xFFF87171), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
                 }
             }
 
-            // 2. 常驻前置条件温馨提示
+            // 2. 常驻前置条件提示
             Text(
                 text = "请在建房界面打开挑战因子开关，并确保没有显示四个问号",
                 color = Color(0xFFFDE047),
@@ -269,7 +276,7 @@ private fun PanelView(
                 }
             }
 
-            // 4. 配方选择列表（高度限制在 84dp 内，保证横屏一屏完整展示）
+            // 4. 配方选择列表
             if (uiState.recipes.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -279,7 +286,7 @@ private fun PanelView(
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "暂无配方，请先在主应用内创建配方~",
+                        text = "暂无配方，请先在主应用内创建配方",
                         color = Color(0xFFFBBF24),
                         fontSize = 12.sp
                     )
@@ -320,64 +327,50 @@ private fun PanelView(
                                 modifier = Modifier.weight(1f)
                             )
                             if (isSelected) {
-                                Text("✓", color = Color(0xFF7DD3FC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("已选", color = Color(0xFF7DD3FC), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             }
 
-            // 5. 刷新频率滑块 + 命中震动开关同行合并
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            // 5. 命中震动开关行
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "刷新频率：约 2.5 次/秒",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp,
+                    maxLines = 1
+                )
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { onVibrateChange(!uiState.vibrateOnHit) }
+                        .padding(horizontal = 2.dp)
                 ) {
+                    Checkbox(
+                        checked = uiState.vibrateOnHit,
+                        onCheckedChange = { onVibrateChange(it) },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color(0xFF38BDF8),
+                            uncheckedColor = Color(0xFF94A3B8),
+                            checkmarkColor = Color(0xFF0F172A)
+                        ),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "频率：${uiState.frequencyPerSecond}/s (上限≈${"%.1f".format(Locale.US, uiState.actualMaxCapPerSecond)}/s)",
-                        color = Color(0xFFF8FAFC),
+                        text = "命中震动",
+                        color = Color(0xFFCBD5E1),
                         fontSize = 11.sp,
                         maxLines = 1
                     )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { onVibrateChange(!uiState.vibrateOnHit) }
-                            .padding(horizontal = 2.dp)
-                    ) {
-                        Checkbox(
-                            checked = uiState.vibrateOnHit,
-                            onCheckedChange = { onVibrateChange(it) },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF38BDF8),
-                                uncheckedColor = Color(0xFF94A3B8),
-                                checkmarkColor = Color(0xFF0F172A)
-                            ),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "命中震动",
-                            color = Color(0xFFCBD5E1),
-                            fontSize = 11.sp,
-                            maxLines = 1
-                        )
-                    }
                 }
-                Slider(
-                    value = uiState.frequencyPerSecond.toFloat(),
-                    onValueChange = { onFrequencyChange(it.roundToInt()) },
-                    valueRange = 1f..10f,
-                    steps = 8,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF38BDF8),
-                        activeTrackColor = Color(0xFF0284C7),
-                        inactiveTrackColor = Color(0xFF334155)
-                    ),
-                    modifier = Modifier.height(24.dp)
-                )
             }
 
             if (uiState.statusMessage != null) {
@@ -389,7 +382,7 @@ private fun PanelView(
                 )
             }
 
-            // 6. 主按钮：开始自动刷新（固定高度与高对比配色）
+            // 6. 主按钮：开始自动刷新
             Button(
                 onClick = onStartClick,
                 enabled = uiState.selectedRecipe != null && !uiState.isBusyCalibrating,
@@ -414,7 +407,7 @@ private fun PanelView(
                 )
             }
 
-            // 7. 底部辅助按钮：重新校准 + 导出画面（高对比实底描边，绝不隐身或折行）
+            // 7. 底部辅助按钮：重新校准 + 导出诊断包
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -444,7 +437,7 @@ private fun PanelView(
                     )
                 }
                 OutlinedButton(
-                    onClick = onSaveScreenshotClick,
+                    onClick = onExportDiagnosticsClick,
                     enabled = !uiState.isBusyCalibrating,
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color(0xFF1E293B),
@@ -460,7 +453,7 @@ private fun PanelView(
                         .height(34.dp)
                 ) {
                     Text(
-                        text = "导出画面",
+                        text = "导出诊断包",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -473,7 +466,7 @@ private fun PanelView(
 }
 
 /**
- * 形态 ③：运行中/暂停小胶囊（高遮蔽底色 + 明确脱困按钮，修复 `03.jpg`）。
+ * 形态 ③：运行中/暂停小胶囊。
  */
 @Composable
 private fun RunningCapsuleView(
@@ -482,7 +475,8 @@ private fun RunningCapsuleView(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
-    onManualSetup: () -> Unit
+    onManualSetup: () -> Unit,
+    onExportDiagnostics: () -> Unit
 ) {
     val paused = uiState.pauseReason != null
 
@@ -580,6 +574,21 @@ private fun RunningCapsuleView(
                     ) {
                         Text("手动对齐方框", fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     }
+
+                    if (uiState.pauseReason == PauseReason.CONSECUTIVE_FAILURES) {
+                        Button(
+                            onClick = onExportDiagnostics,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD97706),
+                                contentColor = Color(0xFFF8FAFC)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("导出诊断包", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
                 }
             }
         }
@@ -587,7 +596,7 @@ private fun RunningCapsuleView(
 }
 
 /**
- * 形态 ④：命中展开视图（高亮 4 个槽位因子图标 + 「继续刷」「完成」按钮，架构方案第 1.5、5 节）。
+ * 形态 ④：命中展开视图（高亮 4 个槽位因子图标 + 「继续刷」「完成」按钮）。
  */
 @Composable
 private fun HitExpandedView(
@@ -615,7 +624,7 @@ private fun HitExpandedView(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "🎉 命中目标配方！（共刷 ${uiState.refreshCount} 次）",
+                text = "命中目标配方（共刷 ${uiState.refreshCount} 次）",
                 color = Color(0xFF4ADE80),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,

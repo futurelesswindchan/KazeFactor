@@ -5,6 +5,7 @@ import io.github.futurelesswindchan.kazefactor.data.datastore.EngineSettingsPref
 import io.github.futurelesswindchan.kazefactor.domain.model.Factor
 import io.github.futurelesswindchan.kazefactor.domain.model.FactorCategory
 import io.github.futurelesswindchan.kazefactor.engine.loop.PauseReason
+import io.github.futurelesswindchan.kazefactor.engine.loop.RefreshSettings
 import io.github.futurelesswindchan.kazefactor.engine.vision.Calibration
 import io.github.futurelesswindchan.kazefactor.engine.vision.CalibrationProfile
 import io.github.futurelesswindchan.kazefactor.engine.vision.SlotResult
@@ -62,6 +63,13 @@ class OverlayStateAndPrefTest {
         val high = EngineSettingsPref(frequencyPerSecond = 99).toRefreshSettings(50.0)
         assertEquals(1, low.frequencyPerSecond)
         assertEquals(10, high.frequencyPerSecond)
+    }
+
+    @Test
+    fun `EngineSettingsPref default frequency uses fixed 400ms interval`() {
+        val pref = EngineSettingsPref()
+        val settings = pref.toRefreshSettings(100.0)
+        assertEquals(RefreshSettings.FIXED_INTERVAL_MS, settings.userIntervalMs)
     }
 
     @Test

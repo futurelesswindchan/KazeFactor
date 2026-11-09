@@ -58,15 +58,15 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * 悬浮窗 ViewModel（架构方案第 2.2、3.4、4、5 节）。
+ * 悬浮窗 ViewModel。
  *
  * 职责：
  * 1. 串联 [RefreshEngine] 状态，驱动悬浮窗各形态（小球/面板/运行中/命中/手动引导/确认预览）；
  * 2. 统计刷新速度（最近 10 次的平均速度）与期望刷新次数（[ProbabilityCalculator]）；
- * 3. 自动校准与位置档案快速核验流转（架构方案第 3.4.2 节）；
+ * 3. 自动校准与位置档案快速核验流转；
  * 4. 驱动手动位置引导、[Snapper] 吸附与确认预览；
  * 5. 命中时短震动（可配置）；
- * 6. 提供「保存当前画面」功能，方便用户真机导出排查问题。
+ * 6. 维护最近 3 帧失败现场黑匣子环形缓冲，并支持一键导出诊断压缩包。
  */
 class OverlayViewModel(
     @field:SuppressLint("StaticFieldLeak") private val context: Context,
