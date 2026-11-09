@@ -1,14 +1,13 @@
 package io.github.futurelesswindchan.kazefactor.overlay
 
-import android.graphics.Bitmap
+import io.github.futurelesswindchan.kazefactor.data.datastore.CalibrationProfileDataStore
 import io.github.futurelesswindchan.kazefactor.data.datastore.EngineSettingsPref
 import io.github.futurelesswindchan.kazefactor.domain.model.Factor
 import io.github.futurelesswindchan.kazefactor.domain.model.FactorCategory
+import io.github.futurelesswindchan.kazefactor.engine.image.ArgbImage
 import io.github.futurelesswindchan.kazefactor.engine.loop.PauseReason
 import io.github.futurelesswindchan.kazefactor.engine.loop.RefreshSettings
-import io.github.futurelesswindchan.kazefactor.engine.vision.Calibration
 import io.github.futurelesswindchan.kazefactor.engine.vision.CalibrationProfile
-import io.github.futurelesswindchan.kazefactor.engine.vision.SlotResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -16,7 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 悬浮窗状态、参数映射与确认预览门控单元测试（架构方案第 6 步）。
+ * 悬浮窗状态、参数映射、确认预览门控与等比档案校验单元测试。
  */
 class OverlayStateAndPrefTest {
 
@@ -88,5 +87,31 @@ class OverlayStateAndPrefTest {
             val msg = reason.toDisplayMessage()
             assertTrue("PauseReason $reason should have non-blank display message", msg.isNotBlank())
         }
+    }
+
+    @Test
+    fun `CalibrationProfileDataStore isUniformScale rejects legacy distorted profiles`() {
+        val patch = ArgbImage(10, 10, IntArray(100))
+        val uniformProfile = CalibrationProfile(
+            screenWidth = 2720,
+            screenHeight = 1260,
+            scaleX = 1.16667,
+            scaleY = 1.16667,
+            originX = -33.0,
+            originY = 0.0,
+            tapX = 1377.0,
+            tapY = 433.0,
+            toggleOnPatch = patch,
+            source = CalibrationProfile.Source.AUTO,
+            createdAt = 1000L
+        )
+        assertTrue(CalibrationProfileDataStore.isUniformScale(uniformProfile))
+
+        val distortedProfile = uniformProfile.copy(
+            scaleX = 1.10305,
+            scaleY = 1.15269,
+            source = CalibrationProfile.Source.MANUAL
+        )
+        assertFalse(CalibrationProfileDataStore.isUniformScale(distortedProfile))
     }
 }
