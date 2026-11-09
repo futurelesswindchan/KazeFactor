@@ -65,9 +65,10 @@ class OverlayStateAndPrefTest {
     }
 
     @Test
-    fun `EngineSettingsPref default frequency uses fixed 400ms interval`() {
+    fun `EngineSettingsPref default frequency uses fixed 350ms interval`() {
         val pref = EngineSettingsPref()
         val settings = pref.toRefreshSettings(100.0)
+        assertEquals(350L, RefreshSettings.FIXED_INTERVAL_MS)
         assertEquals(RefreshSettings.FIXED_INTERVAL_MS, settings.userIntervalMs)
     }
 

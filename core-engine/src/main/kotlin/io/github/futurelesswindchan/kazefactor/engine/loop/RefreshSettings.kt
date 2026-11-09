@@ -30,11 +30,11 @@ data class RefreshSettings(
     val userIntervalMs: Long get() = intervalOverrideMs ?: (1000L / frequencyPerSecond)
 
     companion object {
-        /** 固定稳定运行频率：2.5 次/秒（对应 400 ms 间隔）。 */
-        const val FIXED_FREQUENCY_PER_SECOND = 2.5f
+        /** 固定稳定运行频率：约 2.8 次/秒（对应 350 ms 间隔）。 */
+        const val FIXED_FREQUENCY_PER_SECOND = 2.8f
 
-        /** 固定稳定运行间隔：400 毫秒（对应 2.5 次/秒）。 */
-        const val FIXED_INTERVAL_MS = 400L
+        /** 固定稳定运行间隔：350 毫秒（与无障碍截图最小冷却间隔对齐，对应约 2.86 次/秒）。 */
+        const val FIXED_INTERVAL_MS = 350L
 
         /** 默认整数频率档位常量。 */
         const val DEFAULT_FREQUENCY = 3

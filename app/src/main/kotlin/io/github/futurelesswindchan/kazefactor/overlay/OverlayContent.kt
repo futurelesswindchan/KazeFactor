@@ -341,7 +341,7 @@ private fun PanelView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "刷新频率：约 2.5 次/秒",
+                    text = "刷新频率：约 2.8 次/秒",
                     color = Color(0xFF94A3B8),
                     fontSize = 11.sp,
                     maxLines = 1

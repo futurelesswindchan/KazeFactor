@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.map
 /**
  * 自动刷新设置（供悬浮窗与引擎使用）。
  *
- * 刷新频率固定为每秒 2.5 次（400 ms 间隔），以匹配无障碍服务稳定运行区间。
+ * 刷新频率固定为约 2.8 次/秒（350 ms 间隔），与无障碍截图最小冷却间隔对齐。
  *
  * @property frequencyPerSecond 频率档位，默认使用固定常量 [RefreshSettings.DEFAULT_FREQUENCY]
  * @property maxCountLimitEnabled 是否启用总次数上限（默认启用，上限 = 期望次数 × 3 且至少 100）
@@ -34,7 +34,7 @@ data class EngineSettingsPref(
     /**
      * 按当前设置与配方的期望刷新次数生成 [RefreshSettings]。
      *
-     * 默认采用固定的 400 ms 间隔（2.5 次/秒）。
+     * 默认采用固定的 350 ms 间隔（约 2.8 次/秒）。
      *
      * @param expectedRefreshCount `ProbabilityCalculator.expectedRefreshCount()` 的结果
      */
