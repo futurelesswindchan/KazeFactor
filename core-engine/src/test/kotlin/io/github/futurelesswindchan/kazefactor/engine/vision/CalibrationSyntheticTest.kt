@@ -11,17 +11,15 @@ import kotlin.test.Test
 import kotlin.test.fail
 
 /**
- * 校准的合成分辨率测试。
+ * 自动校准的多倍率合成分辨率与 JPEG 压缩鲁棒性单元测试。
  *
- * 每帧只做一次整屏粗定位（约 0.3 秒），然后在同一批候选上依次检查：
- * - 验收 ②：真图标对应的候选，`s0` 误差按图标宽度分档，宽 ≥ 25 px 时 ≤ 3%，更小时 ≤ 6%。
- * - 验收 ①：完整校准（含槽位验证）成功，4 个槽位的边界相对真值误差 ≤ 2 px，
- *   并且用校准结果识别出的 4 个槽位与 `labels.csv` 完全一致。
- * - 验收 ③：把真图标候选的 `s0` 人为偏 ±8% 后校准，要么被拒，要么槽位误差在搜索边距（6 px）内且 4 槽识别全对。
- * - 验收 ④：校准所依据的候选必须是「挑战因子」标题旁的帮助图标。
+ * 每帧执行一次整屏粗定位，随后在同一批候选上依次验证：
+ * - 粗定位精度：真实帮助图标对应的候选，`s0` 误差按图标宽度分档，宽 ≥ 25 px 时 ≤ 3%，更小时 ≤ 6%。
+ * - 完整校准与识别：面板边框精修与槽位验证通过，4 个槽位边界相对真值误差 ≤ 2 px，且 4 槽识别结果与 `labels.csv` 完全一致。
+ * - 粗定位扰动容错：将真实图标候选的 `s0` 人为偏移 ±8% 后单独精修，要么被拒收，要么槽位误差在搜索边距内且 4 槽识别全对。
+ * - 真实锚点筛选：校准最终采纳的候选必须对应「挑战因子」标题右侧的真实帮助图标。
  *
- * 报告写入 `core-engine/build/reports/recognition/calibration-report.txt`，
- * 其中「识别距离」一行用来复核第 3.2 节的阈值在其他缩放下的余量。
+ * 诊断统计报告输出至 `core-engine/build/reports/recognition/calibration-report.txt`。
  */
 class CalibrationSyntheticTest {
 
@@ -231,25 +229,22 @@ class CalibrationSyntheticTest {
     private class Case(val name: String, val scale: Double, val padX: Int, val padY: Int, val jpegQuality: Float?)
 
     private companion object {
-        /** 架构方案第 3.1 节第 1 段第 6 条：图标宽度达到这个值时用较严的精度要求。 */
+        /** 粗定位精度分档的帮助图标像素宽度阈值（单位：px）。 */
         const val WIDE_ICON_PX = 25.0
 
-        /** 图标宽 ≥ [WIDE_ICON_PX] 时的 `s0` 误差上限。 */
+        /** 图标宽 ≥ [WIDE_ICON_PX] 时的 `s0` 相对误差上限。 */
         const val WIDE_MAX_ERROR = 0.03
 
-        /** 图标宽 < [WIDE_ICON_PX] 时的 `s0` 误差上限，第 2 段窗口系数 0.06 与之对应。 */
+        /** 图标宽 < [WIDE_ICON_PX] 时的 `s0` 相对误差上限（与精修搜索窗口系数 0.06 对应）。 */
         const val NARROW_MAX_ERROR = 0.06
 
-        /**
-         * 判定「这个候选就是真图标」的位置误差上限。
-         * 实验 8、12 都按「帮助图标位置误差 ±2 px」验证过第 2 段，这里用同样的值。
-         */
+        /** 判定粗定位候选命中真实帮助图标的最大位置偏差上限（单位：px）。 */
         const val MAX_ICON_POSITION_ERROR = 2.0
 
-        /** 验收 ①③ 的槽位误差上限（px）。 */
+        /** 槽位边界相对真值的最大允许误差上限（单位：px）。 */
         const val MAX_SLOT_ERROR = 2.0
 
-        /** 验收 ③ 的 `s0` 扰动幅度。 */
+        /** 粗定位缩放系数 `s0` 的人为扰动幅度。 */
         const val PERTURBATION = 0.08
 
         /** 问号截图和已刷新截图各取几张，覆盖两种开关状态。 */

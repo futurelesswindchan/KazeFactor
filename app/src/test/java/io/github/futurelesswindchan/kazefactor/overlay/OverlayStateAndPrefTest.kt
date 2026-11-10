@@ -15,7 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 悬浮窗状态、参数映射、确认预览门控与等比档案校验单元测试。
+ * 悬浮窗状态、参数映射、确认预览门控与等比档案有效性校验单元测试。
  */
 class OverlayStateAndPrefTest {
 
@@ -93,11 +93,12 @@ class OverlayStateAndPrefTest {
     @Test
     fun `CalibrationProfileDataStore isUniformScale rejects legacy distorted profiles`() {
         val patch = ArgbImage(10, 10, IntArray(100))
+        val expectedScale1260 = 1260.0 / 1080.0
         val uniformProfile = CalibrationProfile(
             screenWidth = 2720,
             screenHeight = 1260,
-            scaleX = 1.16667,
-            scaleY = 1.16667,
+            scaleX = expectedScale1260,
+            scaleY = expectedScale1260,
             originX = -33.0,
             originY = 0.0,
             tapX = 1377.0,
@@ -108,6 +109,14 @@ class OverlayStateAndPrefTest {
         )
         assertTrue(CalibrationProfileDataStore.isUniformScale(uniformProfile))
 
+        // 偏差在 4% 容差以内（+3.5%）的等比档案应判定有效
+        val withinToleranceProfile = uniformProfile.copy(
+            scaleX = expectedScale1260 * 1.035,
+            scaleY = expectedScale1260 * 1.035
+        )
+        assertTrue(CalibrationProfileDataStore.isUniformScale(withinToleranceProfile))
+
+        // 横纵缩放偏差超过 1% 的非等比档案应被淘汰
         val distortedProfile = uniformProfile.copy(
             scaleX = 1.10305,
             scaleY = 1.15269,
@@ -122,5 +131,12 @@ class OverlayStateAndPrefTest {
             source = CalibrationProfile.Source.MANUAL
         )
         assertFalse(CalibrationProfileDataStore.isUniformScale(badSnappedProfile))
+
+        // 正向偏离屏幕高度基准比例超过 4%（+4.5%）的档案同样应被淘汰
+        val oversizedProfile = uniformProfile.copy(
+            scaleX = expectedScale1260 * 1.045,
+            scaleY = expectedScale1260 * 1.045
+        )
+        assertFalse(CalibrationProfileDataStore.isUniformScale(oversizedProfile))
     }
 }
