@@ -128,10 +128,10 @@ KazeFactor/
 │
 └── app/                        # Android 客户端模块（依赖 core-engine 与 core-domain）
     ├── data/                   # 配方、引擎参数与位置档案的 DataStore 持久化仓库
-    ├── domain/viewmodel/       # 主应用各界面 ViewModel
     ├── ui/                     # 配方列表、配方编辑、口令码分享与权限引导界面
-    ├── overlay/                # 悬浮窗（小球/面板/运行中/命中）与全屏手动位置引导、确认预览
-    └── service/                # 无障碍服务、HardwareBuffer 截图器、GestureDescription 点击器与窗口生命周期宿主
+    ├── overlay/                # 悬浮窗（小球/面板/运行中/命中）、ViewModel 与全屏手动位置引导、确认预览
+    ├── service/                # 无障碍服务、HardwareBuffer 截图器、GestureDescription 点击器与窗口生命周期宿主
+    └── util/                   # 因子与识别资产加载、诊断数据打包
 ```
 
 ### 识别与自动刷新原理（纯手搓视觉引擎！）
@@ -167,7 +167,7 @@ KazeFactor/
 git clone https://github.com/FuturelessWindchan/KazeFactor.git
 cd KazeFactor
 
-# 运行全量单元测试（领域层 85 项 + 识别与状态机引擎 73 项 + 应用层 6 项，共计 164 项测试！）
+# 运行全量单元测试（覆盖领域层、识别与状态机引擎、应用层）
 ./gradlew :core-domain:test :core-engine:test :app:testDebugUnitTest --console=plain
 
 # 构建 Debug APK
@@ -175,7 +175,7 @@ cd KazeFactor
 ```
 
 > [!NOTE]
-> **🔧 维护小备忘**：运行时因子数据位于 `app/src/main/assets/factors.json`，而领域层单元测试使用的副本位于 `core-domain/src/test/resources/factors.json`。如果后续要修改因子定义，记得两边要保持同步更新哦 awa~
+> **🔧 维护小备忘**：运行时因子数据位于 `app/src/main/assets/factors.json`，领域层单元测试使用的副本位于 `core-domain/src/test/resources/factors.json`。两个文件的内容应当保持一致，修改因子定义时记得同步更新哦 awa~
 
 ---
 
