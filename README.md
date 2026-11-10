@@ -182,13 +182,27 @@ cd KazeFactor
 
 ## 📜 版权、许可与致谢
 
-### 源代码许可
+本项目采用**多协议分层授权**，不同部分的版权归属与许可协议如下：
 
-本项目源代码、以及 `assets/logo` 下的美术资产均采用 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans)**（知识共享 署名-非商业性使用-相同方式共享 4.0 国际）许可协议开源。
+### 1. 源代码与原创折纸 Logo 许可 (CC BY-NC-SA 4.0)
 
-### 游戏美术素材版权（重要！）
+本项目的全部 Kotlin 源代码、构建脚本以及原创几何折纸字标（`assets/logo/KAZE FACTOR.svg`），均采用 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans)**（知识共享 署名-非商业性使用-相同方式共享 4.0 国际）许可协议开源。
 
-项目中包含的以下游戏美术资源与实机截图**版权归凉屋游戏（ChillyRoom）所有**，**不适用**本项目的 CC BY-NC-SA 4.0 开源协议：
+### 2. 维基数据与规则资料许可 (CC BY-SA 3.0)
+
+项目中的挑战因子分类、槽位分布规律、互斥冲突规则整理，以及因子数据文件（`app/src/main/assets/factors.json` 与 `core-domain/src/test/resources/factors.json`）中的文本汇编，参考并改编自灰机 Wiki 旗下的 **[元气骑士中文维基 - 挑战因子](https://yqqs.huijiwiki.com/wiki/%E6%8C%91%E6%88%98%E5%9B%A0%E5%AD%90)** 词条（已转换为结构化 JSON 格式并补充英文对照与识别键名）。
+
+根据[灰机 Wiki 版权规范](<https://www.huijiwiki.com/wiki/%E5%B8%AE%E5%8A%A9:%E7%89%88%E6%9D%83%E4%BF%A1%E6%81%AF(CC_BY-SA)>)，上述维基派生数据独立遵循 **[CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.zh)**（知识共享 署名-相同方式共享 3.0）许可协议，**不适用**本项目的 CC BY-NC-SA 4.0 协议。
+
+### 3. 看板娘 Pinia 表情包图标说明 (EmoteLab EULA)
+
+项目中的看板娘 Pinia 抱枕表情包图像（位于 `assets/logo/Pinia.png`、`assets/logo/Pinia.webp` 及应用图标/悬浮球资源 `app/src/main/res/mipmap-*/ic_launcher_emoji.png`），系基于作者原创角色设定，使用 **[EmoteLab](https://emotelab.app/)** 及其内置资源制作导出。
+
+根据 [EmoteLab 最终用户许可协议 (EULA)](https://emotelab.app/zh-Hans/eula/) 与[使用指南](https://emotelab.app/zh-Hans/assets/usage-guide/)，上述图像文件**不适用**本项目的 CC BY-NC-SA 4.0 开源协议，禁止将其作为独立美术资源重新分发、复用，亦严禁用于任何生成式人工智能模型的训练、微调或开发。
+
+### 4. 游戏美术素材版权（重要！）
+
+项目中包含的以下《元气骑士》游戏内原始美术资源与实机截图，其**版权均归凉屋游戏（ChillyRoom）所有**，**不适用**上述任何开源协议：
 
 - `app/src/main/res/drawable/` 与 `app/src/main/assets/factors/icons/` 下的 59 个挑战因子图标
 - `app/src/main/assets/recognition/` 下的界面识别锚点与问号模板
@@ -196,10 +210,11 @@ cd KazeFactor
 
 详细使用限制请参阅仓库根目录下的 [ICON_LICENSE.txt](./ICON_LICENSE.txt)。
 
-### 致谢
+### 5. 致谢
 
 - 🏠 **[凉屋游戏 (ChillyRoom)](https://www.chillyroom.com/)**：感谢带来这么好玩的《元气骑士》！
-- 📖 **[元气骑士中文维基](https://yqqs.huijiwiki.com/)**：提供详尽的挑战因子分类、槽位规律与冲突规则数据支持。
+- 📖 **[元气骑士中文维基（灰机 Wiki）](https://yqqs.huijiwiki.com/)**：提供详尽的挑战因子分类、槽位规律与冲突规则数据支持。
+- 🎨 **[EmoteLab](https://emotelab.app/)**：提供超级可爱的角色表情制作工具与内置模板支持 awa！
 
 ---
 

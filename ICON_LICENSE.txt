@@ -1,21 +1,30 @@
-# 元气骑士因子图标版权声明
-# Soul Knight Factor Icons Copyright Notice
+# 元气骑士游戏美术素材版权声明
+# Soul Knight Game Assets Copyright Notice
 
-# 位置 / Location:
-# - app/src/main/res/drawable/ 下的 59 个因子图标 png（与下一项为同一批图标）
-#   The 59 factor icon PNGs in app/src/main/res/drawable/ (same icons as below)
-# - app/src/main/assets/factors/icons/*.png（因子图标，用作识别模板 / factor icons, used as recognition templates）
-# - app/src/main/assets/recognition/（从游戏截图裁出的识别锚点与问号模板 / anchors and question-mark templates cropped from game screenshots）
-# - core-engine/src/test/resources/screenshots/*.jpg（游戏实机截图，仅供识别测试 / in-game screenshots, for recognition tests only）
+# 位置 / Locations:
+# - app/src/main/res/drawable/ 下的 59 个因子图标 PNG（用于界面展示，与下一项为同一批图标）
+#   The 59 factor icon PNGs in app/src/main/res/drawable/ (used for UI display, same icons as below)
+# - app/src/main/assets/factors/icons/*.png（因子图标，用作图像识别模板）
+#   Factor icons in app/src/main/assets/factors/icons/*.png (used as image recognition templates)
+# - app/src/main/assets/recognition/（从游戏截图裁出的识别锚点与问号模板）
+#   Anchors and question-mark templates cropped from game screenshots in app/src/main/assets/recognition/
+# - core-engine/src/test/resources/screenshots/*.jpg（游戏实机截图，仅供识别算法单元测试使用）
+#   In-game screenshots in core-engine/src/test/resources/screenshots/*.jpg (for recognition unit tests only)
 
-# 以上文件（图标与游戏画面）的版权归凉屋游戏（ChillyRoom）所有，不适用于本项目的 CC BY-NC-SA 4.0 开源协议。
-# The files above (icons and game imagery) are copyright © ChillyRoom, and are NOT covered by the project's CC BY-NC-SA 4.0 license.
+# 版权归属 / Copyright Ownership:
+# 以上文件（图标与游戏画面）的著作权及一切相关权利均归凉屋游戏（ChillyRoom）所有，
+# 不适用本项目的 CC BY-NC-SA 4.0 开源许可协议。
+# 本项目为玩家自制的非商业开源辅助工具，与凉屋游戏（ChillyRoom）无任何官方关联。
+# The files listed above (icons and game imagery) are Copyright © ChillyRoom and are NOT covered
+# by this project's CC BY-NC-SA 4.0 license. This project is an unofficial, non-commercial fan tool
+# and is not affiliated with or endorsed by ChillyRoom.
 
-# 使用限制：
-# Usage restrictions:
-# 1. 仅可用于本项目的因子识别功能
-#    Only for use in this project's factor recognition feature
-# 2. 不得用于商业用途
-#    No commercial use
-# 3. 分发时必须保留此版权声明
-#    This copyright notice must be retained when distributing
+# 使用限制与善意声明 / Usage Restrictions & Good-Faith Notice:
+# 1. 仅可用于本项目的界面展示、因子识别与自动化测试，禁止提取用于其他项目
+#    Only for UI display, factor recognition, and automated testing within this project; extraction for other projects is prohibited
+# 2. 严禁用于任何商业用途
+#    Strictly no commercial use
+# 3. 分发或派生时必须完整保留此版权声明
+#    This copyright notice must be retained intact when distributing
+# 4. 如权利人（凉屋游戏）对上述素材的使用提出异议或移除要求，本项目将在收到通知后立即配合移除
+#    If the copyright holder (ChillyRoom) objects to the use of these assets or requests their removal, they will be removed promptly upon notice
