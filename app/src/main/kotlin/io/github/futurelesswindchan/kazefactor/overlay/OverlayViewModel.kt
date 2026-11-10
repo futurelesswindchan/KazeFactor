@@ -211,9 +211,9 @@ class OverlayViewModel(
     }
 
     /**
-     * 点击「开始」：按架构方案第 3.4.2 节的流程决策：
-     * - 有当前截图尺寸的档案 → 快速核验通过直接开始；失败则尝试自动校准。
-     * - 无档案 → 自动校准，成功后进入确认预览，失败则提示并引导手动位置设置。
+     * 点击「开始」后的位置校准与启动决策：
+     * - 存在当前截图尺寸的有效位置档案 → 快速核验通过则直接启动；核验失败则回退至自动校准。
+     * - 无有效位置档案 → 执行自动校准，成功后进入确认预览，失败则引导进入手动位置设置。
      */
     fun startRefreshing() {
         val recipe = _uiState.value.selectedRecipe ?: return
@@ -257,15 +257,15 @@ class OverlayViewModel(
                         return@launch
                     }
                     is ProfileVerifier.Result.Fail -> {
-                        // 快速核验失败，不直接打扰用户，尝试先自动校准一次（架构方案第 3.4.2 节）
+                        // 快速核验未通过时，自动回退执行完整自动校准
                     }
                 }
             }
 
-            // 走自动校准流程
+            // 执行自动校准流程
             val calib = calibrator.calibrate(fullImage)
             if (calib != null) {
-                // 自动校准成功，截取开关块并进入确认预览（架构方案第 3.4.6 节：首次或重新设置必须确认预览）
+                // 自动校准成功，截取开关参照块并进入确认预览
                 val patch = ProfileVerifier.captureTogglePatch(fullImage, calib)
                 val bitmap = (frame as? A11yScreenCapturer.BitmapFrame)?.bitmap?.let {
                     it.copy(it.config ?: Bitmap.Config.ARGB_8888, false)
@@ -343,7 +343,7 @@ class OverlayViewModel(
         startRefreshing()
     }
 
-    /** 重新设置位置：进入全屏手动引导（架构方案第 3.4.2、3.4.3 节）。 */
+    /** 重新设置位置：进入全屏手动位置引导界面。 */
     fun startManualCalibration() {
         viewModelScope.launch(Dispatchers.Default) {
             enterManualSetup(startAfterConfirm = false)
@@ -351,10 +351,10 @@ class OverlayViewModel(
     }
 
     /**
-     * 进入手动引导：隐藏悬浮窗（由 OverlayWindow 协作），截一张干净画面，初始化 4 格轮廓。
+     * 进入全屏手动位置引导：临时隐藏悬浮窗并截取干净游戏画面，初始化 4 格轮廓坐标。
      *
-     * 优先复用已保存的当前分辨率位置档案（或自动校准探测到的位置），避免用户每次重设时
-     * 都要从默认居中位置重新拖拽（解决实机反馈问题 c）。
+     * 初始轮廓按「显式传入的 [baseCalibration] > 当前分辨率有效位置档案 > 屏幕高度标准等比居中位置」
+     * 的优先级生成；初始状态下不主动触发自动吸附，呈现蓝色轮廓等待用户调整或确认。
      */
     suspend fun enterManualSetup(startAfterConfirm: Boolean, baseCalibration: Calibration? = null) {
         _uiState.update { it.copy(isBusyCalibrating = true, statusMessage = "正在截取游戏画面…") }
@@ -372,7 +372,7 @@ class OverlayViewModel(
         val screenH = bitmap.height
         val savedProfile = calibrationProfileDataStore.getProfile(screenW, screenH)
 
-        // 初始轮廓优先级：显式传入的 baseCalibration > 已存位置档案 > 按屏幕高度等比换算的默认位置
+        // 初始轮廓优先级：显式传入的 baseCalibration > 已存位置档案 > 按屏幕高度等比换算的默认居中位置
         val initialCalib = baseCalibration
             ?: savedProfile?.toCalibration()
             ?: run {
@@ -400,8 +400,6 @@ class OverlayViewModel(
                 )
             )
         }
-        // 进入手动引导后立即对初始框尝试一次吸附，若默认位置已在范围内则直接变绿
-        performSnap()
     }
 
     /** 更新手动引导中用户拖动的轮廓坐标（开始新拖动时清除旧吸附结果，跟随用户手势）。 */
@@ -426,7 +424,12 @@ class OverlayViewModel(
         }
     }
 
-    /** 用户拖完轮廓并松手后，执行 [Snapper] 吸附。 */
+    /**
+     * 用户拖拽轮廓松手或点击「重新吸附」时，执行 [Snapper] 边缘吸附。
+     *
+     * 仅当 16 条边缘覆盖率全部达标（[Snapper.SnapResult.passesEdgeCheck] 为 true）时才采纳吸附结果；
+     * 若未达标，严格保留用户当前框选坐标 [ManualSetupData.userFrame]，不以次品解覆盖用户框。
+     */
     fun performSnap() {
         val setup = _uiState.value.manualSetup ?: return
         if (setup.isSnapping) return
@@ -457,41 +460,14 @@ class OverlayViewModel(
                     )
                 }
             } else {
-                // 架构兜底策略（军师拍板 2026-11-08）：
-                // 若梯度吸附因高分屏插值模糊未达严苛覆盖率，依次检查梯度最优解与用户粗框能否通过 4 槽位验证
-                val fallbackCalib = Calibration(
-                    scaleX = setup.userFrame.estimatedScaleX,
-                    scaleY = setup.userFrame.estimatedScaleX,
-                    originX = setup.userFrame.left - setup.userFrame.estimatedScaleX * Snapper.REF_FRAME_LEFT,
-                    originY = setup.userFrame.top - setup.userFrame.estimatedScaleX * Snapper.REF_FRAME_TOP
-                )
-                val verifiedCalib = when {
-                    calibrator.verifySlots(fullImage, measured.calibration) -> measured.calibration
-                    calibrator.verifySlots(fullImage, fallbackCalib) -> fallbackCalib
-                    else -> null
-                }
-                if (verifiedCalib != null) {
-                    val snappedInput = UserFrameInput.fromCalibration(verifiedCalib)
-                    _uiState.update { current ->
-                        current.copy(
-                            manualSetup = current.manualSetup?.copy(
-                                isSnapping = false,
-                                userFrame = snappedInput,
-                                snappedCalibration = verifiedCalib,
-                                snapError = null
-                            )
+                _uiState.update { current ->
+                    current.copy(
+                        manualSetup = current.manualSetup?.copy(
+                            isSnapping = false,
+                            snappedCalibration = null,
+                            snapError = "未检测到清晰的槽位外框边缘，已保留当前框选位置；若确认框选无误可直接点击「下一步」"
                         )
-                    }
-                } else {
-                    _uiState.update { current ->
-                        current.copy(
-                            manualSetup = current.manualSetup?.copy(
-                                isSnapping = false,
-                                snappedCalibration = null,
-                                snapError = "看起来自动吸附出了一点小问题，如果确认框选无误请直接点击下一步"
-                            )
-                        )
-                    }
+                    )
                 }
             }
         }
@@ -570,8 +546,7 @@ class OverlayViewModel(
             }
 
             if (preview.startAfterConfirm) {
-                // UI 动画避让（军师架构建议 2026-11-08）：
-                // 给全屏悬浮窗退场与小球展示留出 150ms 沉淀窗口，避免过渡帧残留污染首帧识别
+                // 预留 150ms 窗口切换缓冲，确保全屏确认预览完全退场后再截取首帧识别画面
                 kotlinx.coroutines.delay(150.milliseconds)
                 val recipe = _uiState.value.selectedRecipe
                 if (recipe != null) {
@@ -693,7 +668,7 @@ class OverlayViewModel(
     }
 
     /**
-     * 保存当前画面到应用目录（架构方案第 3.1、8 节「保存当前画面」功能，方便用户真机导出排查问题）。
+     * 保存当前无遮挡画面到应用外部文件目录，供真机离线排查问题。
      */
     fun saveCurrentScreenShot(onSaved: (String) -> Unit) {
         viewModelScope.launch(Dispatchers.Default) {

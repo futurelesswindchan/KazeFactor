@@ -124,10 +124,10 @@ private fun ManualSetupScreen(
     var canvasSize by remember(setup.screenshot) {
         mutableStateOf(IntSize(setup.screenshot.width, setup.screenshot.height))
     }
-    val canvasW = canvasSize.width.takeIf { it > 0 }?.toFloat() ?: setup.screenshot.width.toFloat()
-    val canvasH = canvasSize.height.takeIf { it > 0 }?.toFloat() ?: setup.screenshot.height.toFloat()
-    val ratioX = setup.screenshot.width.toFloat() / canvasW
-    val ratioY = setup.screenshot.height.toFloat() / canvasH
+    val canvasW = (canvasSize.width.takeIf { it > 0 } ?: setup.screenshot.width).toFloat()
+    val canvasH = (canvasSize.height.takeIf { it > 0 } ?: setup.screenshot.height).toFloat()
+    val ratioX = setup.screenshot.width.toFloat() / canvasW.coerceAtLeast(1f)
+    val ratioY = setup.screenshot.height.toFloat() / canvasH.coerceAtLeast(1f)
     val latestRatioX by rememberUpdatedState(ratioX)
     val latestRatioY by rememberUpdatedState(ratioY)
 
@@ -418,10 +418,10 @@ private fun ConfirmPreviewScreen(
     var canvasSize by remember(preview.screenshot) {
         mutableStateOf(IntSize(preview.screenshot.width, preview.screenshot.height))
     }
-    val canvasW = canvasSize.width.takeIf { it > 0 }?.toFloat() ?: preview.screenshot.width.toFloat()
-    val canvasH = canvasSize.height.takeIf { it > 0 }?.toFloat() ?: preview.screenshot.height.toFloat()
-    val ratioX = preview.screenshot.width.toFloat() / canvasW
-    val ratioY = preview.screenshot.height.toFloat() / canvasH
+    val canvasW = (canvasSize.width.takeIf { it > 0 } ?: preview.screenshot.width).toFloat()
+    val canvasH = (canvasSize.height.takeIf { it > 0 } ?: preview.screenshot.height).toFloat()
+    val ratioX = preview.screenshot.width.toFloat() / canvasW.coerceAtLeast(1f)
+    val ratioY = preview.screenshot.height.toFloat() / canvasH.coerceAtLeast(1f)
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 1. 底图

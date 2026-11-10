@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Build
-import android.util.DisplayMetrics
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
@@ -22,9 +21,9 @@ import kotlin.math.roundToInt
  * 悬浮窗宿主窗口管理器。
  *
  * 职责：
- * 1. 创建 `ComposeView` 并通过 [ServiceLifecycleOwner] 挂载到 `WindowManager`（`TYPE_ACCESSIBILITY_OVERLAY`）；
+ * 1. 创建 [ComposeView] 并通过 [ServiceLifecycleOwner] 挂载到 [WindowManager]（`TYPE_ACCESSIBILITY_OVERLAY`）；
  * 2. 统一采用暗色高对比主题渲染，保证在不同系统主题下的可读性；
- * 3. 切换全屏形态（手动引导与确认预览下使用真实物理屏幕像素尺寸并穿透刘海/挖孔区域）与浮窗形态（`WRAP_CONTENT`）；
+ * 3. 切换全屏形态（手动引导与确认预览下使用 `MATCH_PARENT` 配合刘海穿透模式，交由画布真实测量尺寸做坐标映射）与浮窗形态（`WRAP_CONTENT`）；
  * 4. 支持截屏前临时隐窗避让（`alpha = 0f`），防止悬浮窗遮挡游戏画面；
  * 5. 运行时检测悬浮窗与因子面板禁区的重叠状态，自动移动至禁区外最近的屏幕边缘。
  */
@@ -145,17 +144,16 @@ class OverlayWindow(
     /**
      * 切换全屏模式（手动引导/确认预览）与普通浮窗模式。
      *
-     * 全屏模式下穿透刘海/挖孔屏（`LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS`），
-     * 并将 `LayoutParams.width` 与 `height` 设为真实物理屏幕像素尺寸，消除系统避让区造成的窗口裁切。
+     * 全屏模式下统一使用 `MATCH_PARENT`，避免强设超出系统安全区分配的物理宽度导致窗口被向左挤压偏移，
+     * 并确保 Compose 画布能获取真实的窗口测量尺寸以完成准确的双向坐标映射。
      */
     private fun updateWindowLayoutMode(isFullScreen: Boolean) {
         val view = composeView ?: return
         val params = layoutParams ?: return
 
         if (isFullScreen) {
-            val (realWidth, realHeight) = resolveFullScreenSize()
-            params.width = if (realWidth > 0) realWidth else WindowManager.LayoutParams.MATCH_PARENT
-            params.height = if (realHeight > 0) realHeight else WindowManager.LayoutParams.MATCH_PARENT
+            params.width = WindowManager.LayoutParams.MATCH_PARENT
+            params.height = WindowManager.LayoutParams.MATCH_PARENT
             params.x = 0
             params.y = 0
             params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -187,26 +185,6 @@ class OverlayWindow(
         try {
             windowManager.updateViewLayout(view, params)
         } catch (_: Throwable) {
-        }
-    }
-
-    /**
-     * 获取全屏窗口的目标物理像素宽高：优先采用当前截图的真实尺寸，其次通过系统 WindowManager 查询真实物理屏幕尺寸。
-     */
-    private fun resolveFullScreenSize(): Pair<Int, Int> {
-        val state = viewModel.uiState.value
-        val screenshot = state.manualSetup?.screenshot ?: state.confirmPreview?.screenshot
-        if (screenshot != null && screenshot.width > 0 && screenshot.height > 0) {
-            return screenshot.width to screenshot.height
-        }
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val bounds = windowManager.currentWindowMetrics.bounds
-            bounds.width() to bounds.height()
-        } else {
-            val metrics = DisplayMetrics()
-            @Suppress("DEPRECATION")
-            windowManager.defaultDisplay?.getRealMetrics(metrics)
-            metrics.widthPixels to metrics.heightPixels
         }
     }
 

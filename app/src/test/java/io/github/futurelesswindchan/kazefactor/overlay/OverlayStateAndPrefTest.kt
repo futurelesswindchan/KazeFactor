@@ -114,5 +114,13 @@ class OverlayStateAndPrefTest {
             source = CalibrationProfile.Source.MANUAL
         )
         assertFalse(CalibrationProfileDataStore.isUniformScale(distortedProfile))
+
+        // 等比但缩放偏离屏幕高度基准比例（1260 / 1080 = 1.1667）超过 4% 的坏档案（例如 scale = 1.101，偏差约 5.6%）应被自动淘汰
+        val badSnappedProfile = uniformProfile.copy(
+            scaleX = 1.101,
+            scaleY = 1.101,
+            source = CalibrationProfile.Source.MANUAL
+        )
+        assertFalse(CalibrationProfileDataStore.isUniformScale(badSnappedProfile))
     }
 }
