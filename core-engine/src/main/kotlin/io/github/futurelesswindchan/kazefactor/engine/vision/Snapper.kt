@@ -40,7 +40,7 @@ data class UserFrameInput(val left: Double, val right: Double, val top: Double) 
 }
 
 /**
- * 手动引导的边缘吸附器：将用户粗略对齐的 4 格轮廓吸附至真实的槽位方框边缘并生成 [Calibration]。
+ * 手动引导的边缘吸附器：将用户粗略对齐的 4 格轮廓微调吸附至真实的槽位方框边缘并生成 [Calibration]。
  *
  * 游戏界面采用等比渲染，4 个槽位始终为等大、等间距的正方形，因此横向与纵向共用单一等比缩放系数 `scale`（`scaleX == scaleY`）。
  *
@@ -85,7 +85,7 @@ class Snapper {
     fun measure(frame: ArgbImage, input: UserFrameInput): SnapResult {
         val lum = Luminance(frame)
 
-        // 第 1 步：搜索等比缩放系数 scale（围绕 input.estimatedScaleX ±20%）与左沿位置 left（±40 px）
+        // 第 1 步：搜索等比缩放系数 scale（围绕 input.estimatedScaleX ±5%）与左沿位置 left（±24 px）
         val s0 = input.estimatedScaleX
         var bestV = Double.NEGATIVE_INFINITY
         var scale = s0
@@ -102,7 +102,7 @@ class Snapper {
             }
         }
 
-        // 第 2 步：固定 scale 与 left，仅搜索上沿位置 top（±40 px）
+        // 第 2 步：固定 scale 与 left，仅搜索上沿位置 top（±24 px）
         var bestH = Double.NEGATIVE_INFINITY
         var top = input.top
         for (d in -OFFSET_SEARCH_RANGE..OFFSET_SEARCH_RANGE) {
@@ -295,14 +295,14 @@ class Snapper {
         /** 逐边检查中判定单个采样点位于边缘上的最低梯度幅度。 */
         const val EDGE_AMPLITUDE_THRESHOLD = 4.0
 
-        /** 第 1 步等比缩放系数的相对搜索范围（±20%）。 */
-        const val SCALE_SEARCH_RANGE = 0.20
+        /** 第 1 步等比缩放系数的相对搜索范围（±5%）。 */
+        const val SCALE_SEARCH_RANGE = 0.05
 
         /** 第 1 步等比缩放系数的相对搜索步长（0.5%）。 */
         const val SCALE_SEARCH_STEP = 0.005
 
-        /** 第 1、2 步左沿与上沿位置的搜索半径（±40 px，步长 1 px）。 */
-        const val OFFSET_SEARCH_RANGE = 40
+        /** 第 1、2 步左沿与上沿位置的搜索半径（±24 px，步长 1 px）。 */
+        const val OFFSET_SEARCH_RANGE = 24
 
         /** 第 3 步缩放系数精修的相对范围（±1%）。 */
         const val REFINE_SCALE_RANGE = 0.01

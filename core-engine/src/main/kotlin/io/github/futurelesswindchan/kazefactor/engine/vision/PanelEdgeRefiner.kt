@@ -8,26 +8,25 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * 面板边框精修（架构方案第 3.1 节第 2 段）。
+ * 面板边框精修器。
  *
- * 在帮助图标粗定位给出的 `s0`、`ox0` 基础上，用面板左右竖条的 4 条竖边求出准确的缩放和 X 偏移，
- * 再用槽位外框上下沿和面板下边框求 Y 偏移。自动校准只求一个缩放，横纵共用；
- * 纵向残差同时检验了「横竖缩放一致」（236 到 690 相距 454 px，缩放差 1% 就有约 4.5 px 残差）。
+ * 在帮助图标粗定位给出的初始缩放 `s0` 与横向偏移 `ox0` 基础上，利用面板左右竖条的 4 条竖边
+ * 执行最小二乘拟合求出准确的等比缩放系数与横向偏移，再利用槽位外框上下沿和面板下边框求出纵向偏移。
  *
- * 找边只看「哪里跳变」，不看跳变后的绝对亮度，所以对设备之间的亮度、对比度差异不敏感。
- * 所有位置都是像素边界坐标，与 [ReferenceLayout] 和 [Calibration] 的约定一致。
+ * 边缘定位基于亮度跳变梯度而非绝对亮度阈值，对不同设备的亮度与对比度差异不敏感。
+ * 所有坐标均为像素边界坐标，与 [ReferenceLayout] 和 [Calibration] 的几何约定一致。
  *
- * NOTE: 本类不可变，可在多个协程间共享。
+ * NOTE: 本类无可变状态，可在多个协程间安全共享。
  */
 class PanelEdgeRefiner {
 
     /**
-     * 精修结果。
+     * 面板边框精修结果。
      *
-     * @property calibration 精修后的换算（横纵缩放相同）
-     * @property horizontalResidual 4 条竖边最小二乘拟合的最大残差（px）
-     * @property verticalResidual 3 条横边相对平均 Y 偏移的最大残差（px）
-     * @property source 精修所依据的帮助图标候选，调试和测试用
+     * @property calibration 精修后的等比换算参数（`scaleX == scaleY`）
+     * @property horizontalResidual 4 条竖边最小二乘拟合的最大残差（单位：px）
+     * @property verticalResidual 3 条横边相对平均纵向偏移的最大残差（单位：px）
+     * @property source 精修所依据的帮助图标粗定位候选
      */
     data class RefineResult(
         val calibration: Calibration,
@@ -35,26 +34,34 @@ class PanelEdgeRefiner {
         val verticalResidual: Double,
         val source: HelpIconEstimate
     ) {
-        /** 两个方向的残差都不超过 [MAX_RESIDUAL]（第 3.1 节第 2 段第 4 条）。 */
+        /**
+         * 随缩放系数动态放宽的最大允许残差阈值（单位：px）。
+         *
+         * 高分辨率屏幕（`scale > 1.0`）经过 GPU 重采样插值后边缘过渡带展宽，
+         * 按 `maxOf(2.5, 2.5 * scaleX)` 动态计算容差以避免高分屏被过严的固定阈值误拒。
+         */
+        val maxAllowedResidual: Double = maxOf(MAX_RESIDUAL, MAX_RESIDUAL * calibration.scaleX)
+
+        /** 横向与纵向拟合残差是否均在 [maxAllowedResidual] 允许范围内。 */
         val passesResidualCheck: Boolean
-            get() = horizontalResidual <= MAX_RESIDUAL && verticalResidual <= MAX_RESIDUAL
+            get() = horizontalResidual <= maxAllowedResidual && verticalResidual <= maxAllowedResidual
     }
 
     /**
-     * 以帮助图标候选 [estimate] 为起点精修。
+     * 以帮助图标候选 [estimate] 为起点执行面板边框精修。
      *
-     * 本函数只负责测量，不做残差判定：残差超标的结果也会返回，交给调用方看
-     * [RefineResult.passesResidualCheck]，这样测试报告能看到假锚点被拒的具体原因。
+     * 本方法仅负责边缘测量与直线拟合，不直接过滤残差超标项；调用方通过 [RefineResult.passesResidualCheck]
+     * 判断残差是否达标，以便诊断与测试报告记录候选被拒的具体原因。
      *
-     * @param frame 完整截图
-     * @param estimate 粗定位的一个候选
-     * @return 精修结果；有边落在画面外、窗口内找不到符号正确的跳变，或拟合出非正缩放时返回 null
+     * @param frame 完整屏幕截图
+     * @param estimate 帮助图标粗定位候选
+     * @return 精修结果；当预测边落在画面外、搜索窗口内无同极性跳变或拟合出非正缩放系数时返回 null
      */
     fun refine(frame: ArgbImage, estimate: HelpIconEstimate): RefineResult? {
         val s0 = estimate.scale
         val ox0 = estimate.originX
 
-        // 第 1 步：横向。4 条竖边对 x_屏 = ox + s × x_参 做最小二乘
+        // 第 1 步：横向拟合。对 4 条竖边的屏幕坐标与参考坐标执行最小二乘线性回归：x_screen = ox + s * x_ref
         val rowProfile = horizontalProfile(frame, estimate)
         val verticalEdges = ReferenceLayout.PANEL_VERTICAL_EDGES
         val xs = verticalEdges.map { edge ->
@@ -66,7 +73,7 @@ class PanelEdgeRefiner {
         if (scale <= 0) return null
         val originX = fit.intercept
 
-        // 第 2 步：纵向。s 已知，按 oy_pred = 图标 y − s × 125 预测 3 条横边，oy 取 3 个点的平均
+        // 第 2 步：纵向拟合。固定精修后的等比缩放 scale，根据帮助图标纵坐标预测 3 条横边并取均值作为 originY
         val oyPred = estimate.y - scale * ReferenceLayout.HELP_ICON_RECT.y
         val columnProfile = verticalProfile(frame, scale, originX)
         val horizontalEdges = ReferenceLayout.PANEL_HORIZONTAL_EDGES
@@ -87,11 +94,8 @@ class PanelEdgeRefiner {
     }
 
     /**
-     * 横向亮度剖面：参考 y 200..660 每 4 行取 1 行（跳过刷新按钮所在的 370..505），
-     * 按粗定位换算成屏幕行后逐列求平均亮度。落在画面外的行跳过。
-     *
-     * 行位置以帮助图标为基准换算（`图标 y + s0 × (参考 y − 125)`），离图标越远，`s0` 误差带来的偏移越大，
-     * 最远约 0.06 × 535 ≈ 32 px，仍在面板竖条的纵向范围内。
+     * 计算横向亮度剖面：在参考纵坐标 `200..660` 范围内每隔 4 行采样 1 行（跳过刷新按钮所在的 `370..505`），
+     * 按粗定位参数换算为屏幕行后逐列求平均亮度。超出画面边界的采样行自动跳过。
      */
     private fun horizontalProfile(frame: ArgbImage, estimate: HelpIconEstimate): DoubleArray {
         val profile = DoubleArray(frame.width)
@@ -109,16 +113,14 @@ class PanelEdgeRefiner {
     }
 
     /**
-     * 纵向亮度剖面：架构方案第 3.1 节表中的 6 组列，按已精修的横向换算取屏幕列，逐行求平均亮度。
-     *
-     * 缩小时几个参考列可能落到同一屏幕列上，这里不去重：权重只影响平均值，不影响跳变位置。
+     * 计算纵向亮度剖面：按已精修的横向换算参数将 [ReferenceLayout.VERTICAL_PROFILE_COLUMNS] 映射为屏幕列，
+     * 逐行计算平均亮度。
      */
     private fun verticalProfile(frame: ArgbImage, scale: Double, originX: Double): DoubleArray {
         val profile = DoubleArray(frame.height)
         var columns = 0
         for (range in ReferenceLayout.VERTICAL_PROFILE_COLUMNS) {
             for (refX in range) {
-                // 取参考像素中心对应的屏幕像素
                 val x = (originX + scale * (refX + 0.5) - 0.5).roundToInt()
                 if (x !in 0 until frame.width) continue
                 for (y in 0 until frame.height) profile[y] += luminance(frame.pixels[y * frame.width + x])
@@ -130,17 +132,14 @@ class PanelEdgeRefiner {
     }
 
     /**
-     * 在 `predicted ± window` 内找符号与 [polarity] 一致、幅度最大的跳变，抛物线插值到亚像素。
+     * 在 `predicted ± window` 范围内搜索极性与 [polarity] 一致且梯度幅值最大的位置，并通过抛物线插值精确到亚像素。
      *
-     * 边界 b 处的梯度取「b 之后 2 px 之和 − b 之前 2 px 之和」的一半：
-     * `g(b) = (p[b] + p[b+1] − p[b−1] − p[b−2]) / 2`。理想阶跃在 b 处取最大值，
-     * 两侧各降一半，正好对称，插值结果就是 b 本身。
+     * 边界 `b` 处的梯度定义为 `g(b) = (p[b] + p[b+1] - p[b-1] - p[b-2]) / 2`。
      *
-     * @return 边界坐标（可为小数）；窗口与剖面没有交集，或窗口内没有符号正确的梯度时返回 null
+     * @return 亚像素边界坐标；当搜索窗口越界或窗口内不存在同极性梯度时返回 null
      */
     private fun findEdge(profile: DoubleArray, predicted: Double, window: Double, polarity: EdgePolarity): Double? {
         val sign = if (polarity == EdgePolarity.RISING) 1.0 else -1.0
-        // g(b) 需要 p[b−2]..p[b+1]，插值还要 g(b±1)，所以 b 的合法范围是 3..size−3
         val lo = maxOf(3, kotlin.math.ceil(predicted - window).toInt())
         val hi = minOf(profile.size - 3, kotlin.math.floor(predicted + window).toInt())
         if (lo > hi) return null
@@ -165,10 +164,10 @@ class PanelEdgeRefiner {
 
     private fun gradient(p: DoubleArray, b: Int): Double = (p[b] + p[b + 1] - p[b - 1] - p[b - 2]) / 2
 
-    /** 直线拟合结果 `y = intercept + slope × x`。 */
+    /** 最小二乘直线拟合结果 `y = intercept + slope * x`。 */
     private class LineFit(val slope: Double, val intercept: Double, val maxResidual: Double)
 
-    /** 最小二乘拟合 `y = a + b × x`；x 全部相同时返回 null。 */
+    /** 对给定点集执行最小二乘线性拟合 `y = a + b * x`；自变量方差为 0 时返回 null。 */
     private fun fitLine(xs: List<Double>, ys: List<Double>): LineFit? {
         val n = xs.size
         val meanX = xs.average()
@@ -187,26 +186,23 @@ class PanelEdgeRefiner {
     }
 
     companion object {
-        /** 横向、纵向拟合残差的上限（px）。 */
-        const val MAX_RESIDUAL = 1.5
+        /** 基准分辨率（`scale <= 1.0`）下横向与纵向拟合残差的基础上限（单位：px）。 */
+        const val MAX_RESIDUAL = 2.5
 
-        /**
-         * 竖边搜索窗口的系数。窗口为 `系数 × s0 × |参考 x − 1475| + 6`，
-         * 2026-11-02 由 0.04 改为 0.06，与粗定位 `s0` 误差最多 6% 对应。
-         */
+        /** 竖边搜索窗口相对帮助图标距离的比例系数（对应粗定位 `s0` 最大 6% 误差）。 */
         const val WINDOW_COEFFICIENT = 0.06
 
-        /** 竖边搜索窗口的固定余量（px），覆盖帮助图标 ±2 px 的位置误差和取整。 */
+        /** 竖边搜索窗口的固定像素余量（单位：px），用于覆盖帮助图标位置离散误差。 */
         const val WINDOW_MARGIN = 6.0
 
-        /** 横边搜索窗口（px）。横向缩放已经精修过，只剩帮助图标纵向位置的误差。 */
+        /** 横边搜索窗口半宽（单位：px）。 */
         const val VERTICAL_WINDOW = 8.0
 
-        /** 竖边的搜索半宽。 */
+        /** 计算参考横坐标 [refX] 处竖边的搜索窗口半宽。 */
         private fun horizontalWindow(s0: Double, refX: Int): Double =
             WINDOW_COEFFICIENT * s0 * abs(refX - ReferenceLayout.HELP_ICON_RECT.x) + WINDOW_MARGIN
 
-        /** 亮度取 RGB 平均，与调研报告实验 8 的剖面一致。 */
+        /** 计算像素的 RGB 三通道均值亮度。 */
         private fun luminance(argb: Int): Double = (redOf(argb) + greenOf(argb) + blueOf(argb)) / 3.0
     }
 }

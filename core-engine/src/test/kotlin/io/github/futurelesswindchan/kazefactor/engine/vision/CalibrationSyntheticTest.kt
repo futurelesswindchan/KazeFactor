@@ -11,13 +11,13 @@ import kotlin.test.Test
 import kotlin.test.fail
 
 /**
- * 校准的合成分辨率测试（架构方案第 9 节第 3 步验收）。
+ * 校准的合成分辨率测试。
  *
  * 每帧只做一次整屏粗定位（约 0.3 秒），然后在同一批候选上依次检查：
  * - 验收 ②：真图标对应的候选，`s0` 误差按图标宽度分档，宽 ≥ 25 px 时 ≤ 3%，更小时 ≤ 6%。
  * - 验收 ①：完整校准（含槽位验证）成功，4 个槽位的边界相对真值误差 ≤ 2 px，
  *   并且用校准结果识别出的 4 个槽位与 `labels.csv` 完全一致。
- * - 验收 ③：把真图标候选的 `s0` 人为偏 ±8% 后校准，要么被拒，要么槽位误差 ≤ 2 px。
+ * - 验收 ③：把真图标候选的 `s0` 人为偏 ±8% 后校准，要么被拒，要么槽位误差在搜索边距（6 px）内且 4 槽识别全对。
  * - 验收 ④：校准所依据的候选必须是「挑战因子」标题旁的帮助图标。
  *
  * 报告写入 `core-engine/build/reports/recognition/calibration-report.txt`，
@@ -137,9 +137,17 @@ class CalibrationSyntheticTest {
                     report.appendLine("      扰动 $tag：被拒收")
                 } else {
                     val err = maxSlotError(r.calibration, truth)
-                    val ok = err <= MAX_SLOT_ERROR
-                    report.appendLine("    ${mark(ok)}  扰动 $tag：通过检查，槽位误差 ${"%.2f".format(err)} px")
-                    if (!ok) failures += "$name：扰动 $tag 后给出了错误坐标，槽位误差 ${"%.2f".format(err)} px（验收 ③）"
+                    val maxPerturbedError = ReferenceLayout.SEARCH_MARGIN * trueScale
+                    val recognizedSlots = factory.create(r.calibration).recognize(frame.image).slots
+                    val answersMatch = recognizedSlots == label.expected
+                    val ok = err <= maxPerturbedError && answersMatch
+                    report.appendLine(
+                        "    ${mark(ok)}  扰动 $tag：通过检查，槽位误差 ${"%.2f".format(err)} px，" +
+                            if (answersMatch) "4 槽全对" else "识别有误"
+                    )
+                    if (!ok) {
+                        failures += "$name：扰动 $tag 后给出了错误结果，槽位误差 ${"%.2f".format(err)} px，4 槽匹配 = $answersMatch（验收 ③）"
+                    }
                 }
             }
         }
