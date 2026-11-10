@@ -20,8 +20,25 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val keystorePath = System.getenv("SIGNING_KEYSTORE_PATH")
+    val hasCiSigning = !keystorePath.isNullOrBlank()
+
+    signingConfigs {
+        if (hasCiSigning) {
+            create("release") {
+                storeFile = file(keystorePath!!)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasCiSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
